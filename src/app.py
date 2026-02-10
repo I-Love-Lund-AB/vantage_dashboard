@@ -1134,6 +1134,7 @@ else:
     
     # Initiera alla figurer för export
     fig_trend, fig_pen, fig_dist, fig_large, fig_cities, fig_lund = None, None, None, None, None, None
+    fig_geo_owners_pie, fig_geo_holdings_pie = None, None
 
     # TAB 1: Trender
     with tab1:
@@ -1351,12 +1352,12 @@ else:
             city_data['city_clean'] = city_data['city'].astype(str).str.title().str.strip()
             city_counts = city_data['city_clean'].value_counts()
             
-            # Ta topp 10 och lägg till "Övriga" för resten
-            top_10_cities = city_counts.head(10)
-            other_cities_count = city_counts.iloc[10:].sum() if len(city_counts) > 10 else 0
+            # Ta topp 15 och lägg till "Övriga" för resten
+            top_15_cities = city_counts.head(15)
+            other_cities_count = city_counts.iloc[15:].sum() if len(city_counts) > 15 else 0
             
-            # Skapa DataFrame med topp 10 + Övriga
-            top_cities = top_10_cities.reset_index()
+            # Skapa DataFrame med topp 15 + Övriga
+            top_cities = top_15_cities.reset_index()
             top_cities.columns = ['Stad', 'Antal Ägare']
             
             if other_cities_count > 0:
@@ -1365,45 +1366,79 @@ else:
                     pd.DataFrame([{'Stad': 'Övriga', 'Antal Ägare': other_cities_count}])
                 ], ignore_index=True)
             
-            # Skapa kolumnlayout: städer-diagram till vänster, pajdiagram till höger
-            col_cities, col_pie = st.columns(2)
-            
-            with col_cities:
-                fig_cities = px.bar(top_cities, x='Stad', y='Antal Ägare', 
-                                  title="Antal Ägare per Stad (Topp 10)", 
-                                  text_auto=True,
-                                  color_discrete_sequence=[ILOVE_BLUE])
-                fig_cities.update_traces(textangle=0)
-                apply_brand_layout(fig_cities)
-                st.plotly_chart(fig_cities, use_container_width=True)
-            
-            with col_pie:
-                # Räkna Lund vs Övriga baserat på postnummer (prefix importeras från config.py)
-                pie_data = latest_data.copy()
-                
-                if 'postalCode' in pie_data.columns:
-                    pie_data['postalCode'] = pie_data['postalCode'].astype(str).str.replace(" ", "")
-                    pie_data['postal_prefix'] = pie_data['postalCode'].str[:3]
-                    lund_count = len(pie_data[pie_data['postal_prefix'].isin(LUND_POSTAL_PREFIXES)])
-                    other_count = len(pie_data) - lund_count
-                else:
-                    # Fallback: använd stadnamn om postnummer saknas
-                    pie_data['city_clean'] = pie_data['city'].astype(str).str.title().str.strip()
-                    lund_count = len(pie_data[pie_data['city_clean'].str.contains('Lund', case=False, na=False)])
-                    other_count = len(pie_data) - lund_count
-                
-                # Skapa pajdiagram
-                pie_df = pd.DataFrame({
-                    'Kategori': ['Lund', 'Övriga'],
-                    'Antal Ägare': [lund_count, other_count]
-                })
-                
-                fig_pie = px.pie(pie_df, values='Antal Ägare', names='Kategori', 
-                                title="Geografisk Fördelning: Lund vs Övriga Orter",
-                                color_discrete_sequence=[ILOVE_RED, ILOVE_BLUE])
-                fig_pie.update_traces(textposition='inside', textinfo='percent+label')
-                apply_brand_layout(fig_pie)
-                st.plotly_chart(fig_pie, use_container_width=True)
+            # Rad 1: Stor stapelgraf (full bredd)
+            fig_cities = px.bar(
+                top_cities,
+                x='Stad',
+                y='Antal Ägare',
+                title="Antal Ägare per Stad (Topp 15)",
+                text_auto=True,
+                color_discrete_sequence=[ILOVE_BLUE]
+            )
+            fig_cities.update_traces(textangle=0)
+            fig_cities.update_layout(height=520)
+            apply_brand_layout(fig_cities)
+            st.plotly_chart(fig_cities, use_container_width=True)
+
+            # Rad 2: Två pajdiagram bredvid varandra (ägare + andel aktier)
+            col_pie_owners, col_pie_holdings = st.columns(2)
+
+            # Räkna Lund vs Övriga baserat på postnummer (prefix importeras från config.py)
+            pie_data = latest_data.copy()
+
+            if 'postalCode' in pie_data.columns:
+                pie_data['postalCode'] = pie_data['postalCode'].astype(str).str.replace(" ", "")
+                pie_data['postal_prefix'] = pie_data['postalCode'].str[:3]
+                lund_mask = pie_data['postal_prefix'].isin(LUND_POSTAL_PREFIXES)
+            else:
+                # Fallback: använd stadnamn om postnummer saknas
+                pie_data['city_clean'] = pie_data['city'].astype(str).str.title().str.strip()
+                lund_mask = pie_data['city_clean'].str.contains('Lund', case=False, na=False)
+
+            # Paj 1: Antal ägare
+            lund_count = int(lund_mask.sum())
+            other_count = int(len(pie_data) - lund_count)
+            pie_owners_df = pd.DataFrame({
+                'Kategori': ['Lund', 'Övriga'],
+                'Antal Ägare': [lund_count, other_count]
+            })
+
+            fig_geo_owners_pie = px.pie(
+                pie_owners_df,
+                values='Antal Ägare',
+                names='Kategori',
+                title="Geografisk Fördelning: Lund vs Övriga (Antal ägare)",
+                color_discrete_sequence=[ILOVE_RED, ILOVE_BLUE]
+            )
+            fig_geo_owners_pie.update_traces(textposition='inside', textinfo='percent+label')
+            apply_brand_layout(fig_geo_owners_pie)
+
+            # Paj 2: Andel av ägande (aktier)
+            if 'holdingsQuantity' in pie_data.columns:
+                lund_shares = float(pie_data.loc[lund_mask, 'holdingsQuantity'].sum())
+                other_shares = float(pie_data.loc[~lund_mask, 'holdingsQuantity'].sum())
+            else:
+                lund_shares, other_shares = 0.0, 0.0
+
+            pie_holdings_df = pd.DataFrame({
+                'Kategori': ['Lund', 'Övriga'],
+                'Antal Aktier': [lund_shares, other_shares]
+            })
+
+            fig_geo_holdings_pie = px.pie(
+                pie_holdings_df,
+                values='Antal Aktier',
+                names='Kategori',
+                title="Geografisk Fördelning: Lund vs Övriga (Andel av ägande)",
+                color_discrete_sequence=[ILOVE_RED, ILOVE_BLUE]
+            )
+            fig_geo_holdings_pie.update_traces(textposition='inside', textinfo='percent+label')
+            apply_brand_layout(fig_geo_holdings_pie)
+
+            with col_pie_owners:
+                st.plotly_chart(fig_geo_owners_pie, use_container_width=True)
+            with col_pie_holdings:
+                st.plotly_chart(fig_geo_holdings_pie, use_container_width=True)
             
         st.markdown("---")
         st.markdown("##### Lund Fördjupning (Postnummerområden)")
@@ -1905,11 +1940,24 @@ else:
             # === SEKTION 3: GEOGRAFI ===
             html_content_parts.append("<h2>Geografisk Analys</h2>")
             if fig_cities:
-                html_content_parts.append("<h3>Topp 10 Städer</h3>")
+                html_content_parts.append("<h3>Topp 15 Städer</h3>")
                 html_content_parts.append("<div class='chart-container'>")
                 plotly_html = pio.to_html(fig_cities, full_html=False, include_plotlyjs=False)
                 html_content_parts.append(plotly_html)
                 html_content_parts.append("</div>")
+
+            # Två pajdiagram: Lund vs Övriga (ägare + andel ägande)
+            if fig_geo_owners_pie or fig_geo_holdings_pie:
+                html_content_parts.append("<h3>Lund vs Övriga</h3>")
+                html_content_parts.append("<div class='chart-container'>")
+                html_content_parts.append("<div class='two-col'>")
+                if fig_geo_owners_pie:
+                    plotly_html = pio.to_html(fig_geo_owners_pie, full_html=False, include_plotlyjs=False)
+                    html_content_parts.append(f"<div>{plotly_html}</div>")
+                if fig_geo_holdings_pie:
+                    plotly_html = pio.to_html(fig_geo_holdings_pie, full_html=False, include_plotlyjs=False)
+                    html_content_parts.append(f"<div>{plotly_html}</div>")
+                html_content_parts.append("</div></div>")
             
             if fig_lund:
                 html_content_parts.append("<h3>Lund - Postnummerområden</h3>")
