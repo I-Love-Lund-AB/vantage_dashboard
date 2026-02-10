@@ -1235,8 +1235,10 @@ else:
         st.markdown("#### Ägarstruktur")
         if 'holdingsQuantity' in latest_data.columns:
             # Storleksklasser enligt årsredovisningsformat
-            bins = [0, 50, 100, 200, 300, 400, 500, float('inf')]
-            labels = ['Under 50', '51-100', '101-200', '201-300', '301-400', '401-500', '500+']
+            # Viktigt: KPI-kortet räknar "Ägare >= 500". För att matcha det måste 500 hamna i "500+"
+            # (annars hamnar exakt 500 i "401-500" när pd.cut körs med right=True).
+            bins = [0, 50, 100, 200, 300, 400, 499, float('inf')]
+            labels = ['Under 50', '51-100', '101-200', '201-300', '301-400', '401-499', '500+']
             dist_data = latest_data.copy()
             dist_data['Size Bucket'] = pd.cut(dist_data['holdingsQuantity'], bins=bins, labels=labels, right=True)
             
