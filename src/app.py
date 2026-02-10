@@ -1112,14 +1112,17 @@ else:
     total_shares_held = latest_data['holdingsQuantity'].sum() if 'holdingsQuantity' in latest_data.columns else 0
     
     if 'holdingsQuantity' in latest_data.columns:
-        small_holders = len(latest_data[latest_data['holdingsQuantity'] < 500])
-        large_holders = len(latest_data[latest_data['holdingsQuantity'] >= 500])
+        # Matcha "Ägarstruktur"-tabellen:
+        # - Intervallet 401-500 inkluderar exakt 500
+        # - "500+" betyder därför > 500
+        small_holders = len(latest_data[latest_data['holdingsQuantity'] <= 500])
+        large_holders = len(latest_data[latest_data['holdingsQuantity'] > 500])
     else:
         small_holders, large_holders = 0, 0
     
     kpi1.metric("Totalt Antal Ägare", total_holders)
-    kpi2.metric("Ägare < 500 Aktier", small_holders)
-    kpi3.metric("Ägare >= 500 Aktier", large_holders)
+    kpi2.metric("Ägare ≤ 500 Aktier", small_holders)
+    kpi3.metric("Ägare > 500 Aktier", large_holders)
 
     # Analys Tabbar
     st.markdown("### Analys")
@@ -1235,10 +1238,9 @@ else:
         st.markdown("#### Ägarstruktur")
         if 'holdingsQuantity' in latest_data.columns:
             # Storleksklasser enligt årsredovisningsformat
-            # Viktigt: KPI-kortet räknar "Ägare >= 500". För att matcha det måste 500 hamna i "500+"
-            # (annars hamnar exakt 500 i "401-500" när pd.cut körs med right=True).
-            bins = [0, 50, 100, 200, 300, 400, 499, float('inf')]
-            labels = ['Under 50', '51-100', '101-200', '201-300', '301-400', '401-499', '500+']
+            # Obs: Med right=True hamnar exakt 500 i intervallet 401-500, så "500+" motsvarar > 500.
+            bins = [0, 50, 100, 200, 300, 400, 500, float('inf')]
+            labels = ['Under 50', '51-100', '101-200', '201-300', '301-400', '401-500', '500+']
             dist_data = latest_data.copy()
             dist_data['Size Bucket'] = pd.cut(dist_data['holdingsQuantity'], bins=bins, labels=labels, right=True)
             
@@ -1853,8 +1855,8 @@ else:
             html_content_parts.append("<div class='kpi-container'>")
             html_content_parts.append(f"<div class='kpi-box highlight'><div class='kpi-label'>Senaste Datum</div><div class='kpi-value'>{str(latest_date)[:10]}</div></div>")
             html_content_parts.append(f"<div class='kpi-box'><div class='kpi-label'>Totalt Antal Ägare</div><div class='kpi-value'>{total_holders:,}</div></div>")
-            html_content_parts.append(f"<div class='kpi-box'><div class='kpi-label'>Ägare &lt; 500 Aktier</div><div class='kpi-value'>{small_holders:,}</div></div>")
-            html_content_parts.append(f"<div class='kpi-box'><div class='kpi-label'>Ägare ≥ 500 Aktier</div><div class='kpi-value'>{large_holders:,}</div></div>")
+            html_content_parts.append(f"<div class='kpi-box'><div class='kpi-label'>Ägare ≤ 500 Aktier</div><div class='kpi-value'>{small_holders:,}</div></div>")
+            html_content_parts.append(f"<div class='kpi-box'><div class='kpi-label'>Ägare &gt; 500 Aktier</div><div class='kpi-value'>{large_holders:,}</div></div>")
             html_content_parts.append("</div>")
             
             # A/B-aktier information
