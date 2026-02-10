@@ -38,9 +38,19 @@ Följande fält i datan innehåller personuppgifter:
 5. Klicka på "🔒 Anonymisera igen" för att logga ut
 
 **Konfigurera eget lösenord:**
-Lägg till i `.env`-filen:
+
+*På Streamlit Cloud (produktion):*
+1. Gå till https://share.streamlit.io
+2. Välj din app → Settings → Secrets
+3. Lägg till:
+```toml
+DATA_ACCESS_PASSWORD = "ditt_säkra_lösenord_här"
 ```
-DATA_ACCESS_PASSWORD=ditt_säkra_lösenord_här
+
+*Lokalt (utveckling):*
+Skapa `.streamlit/secrets.toml`:
+```toml
+DATA_ACCESS_PASSWORD = "ditt_säkra_lösenord_här"
 ```
 
 ## Rekommenderade Åtgärder för GDPR-Compliance
@@ -88,12 +98,15 @@ import streamlit_authenticator as stauth
   - Implementera varningar för misstänkt aktivitet
 
 ### 6. **Informationssäkerhet** 🛡️
-- **Nuvarande status:** Dashboard körs lokalt
+- **Nuvarande status:** Dashboard körs på Streamlit Community Cloud
+- **Implementerat:**
+  - ✅ HTTPS används automatiskt (Streamlit Cloud)
+  - ✅ Servern hanteras och uppdateras av Streamlit
+  - ✅ Environment variables via Streamlit Secrets
+  - ✅ Lösenordsskydd för känslig data (Cap Table, rådata)
 - **Rekommendation:**
-  - Om dashboarden ska exponeras externt: använd HTTPS
-  - Säkerställ att servern är uppdaterad och säker
-  - Implementera rate limiting för API-anrop
-  - Använd environment variables för känsliga konfigurationer (✅ redan implementerat)
+  - Granska regelbundet vem som har access till appen
+  - Uppdatera lösenord regelbundet
 
 ### 7. **Dokumentation** 📝
 - **Rekommendation:**
@@ -126,13 +139,14 @@ import streamlit_authenticator as stauth
 
 ## Checklista för GDPR-Compliance
 
-- [ ] Implementera användarautentisering
+- [x] ~~Implementera användarautentisering~~ → Lösenordsskydd för känslig data
+- [x] ~~HTTPS~~ → Streamlit Cloud använder HTTPS automatiskt
 - [ ] Kryptera lagrad data
 - [ ] Implementera åtkomstloggning
 - [ ] Skapa register över personuppgiftsbehandlingar
 - [ ] Dokumentera syfte och laglig grund
 - [ ] Implementera automatisk radering av gamla data
-- [ ] Säkerställ säker datalagring och backup
+- [x] ~~Säkerställ säker datalagring~~ → Streamlit Cloud + GitHub Private repo
 - [ ] Informera användare om databehandling
 - [ ] Implementera funktioner för användarrättigheter
 - [ ] Genomför säkerhetsaudit
@@ -152,6 +166,6 @@ Vid frågor om GDPR-compliance, kontakta:
 
 ---
 
-**Senast uppdaterad:** 2026-01-17
-**Version:** 1.0
+**Senast uppdaterad:** 2026-02-10
+**Version:** 1.1 (Uppdaterad för Streamlit Cloud)
 
