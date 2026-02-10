@@ -8,8 +8,9 @@ certs/
 # API-nycklar och hemligheter
 secrets.toml
 
-# Data med personuppgifter
-data/shareholders_history.csv
+# Data med personuppgifter (behövs för dashboarden)
+# OBS: shareholders_history.csv laddas upp för att dashboarden ska fungera
+# data/shareholders_history.csv
 data/aktieagare_*.csv
 
 # Python cache
