@@ -1407,8 +1407,9 @@ else:
                 pie_owners_df,
                 values='Antal Ägare',
                 names='Kategori',
+                color='Kategori',
                 title="Geografisk Fördelning: Lund vs Övriga (Antal ägare)",
-                color_discrete_sequence=[ILOVE_RED, ILOVE_BLUE]
+                color_discrete_map={'Lund': ILOVE_RED, 'Övriga': ILOVE_BLUE}
             )
             fig_geo_owners_pie.update_traces(textposition='inside', textinfo='percent+label')
             apply_brand_layout(fig_geo_owners_pie)
@@ -1429,8 +1430,9 @@ else:
                 pie_holdings_df,
                 values='Antal Aktier',
                 names='Kategori',
+                color='Kategori',
                 title="Geografisk Fördelning: Lund vs Övriga (Andel av ägande)",
-                color_discrete_sequence=[ILOVE_RED, ILOVE_BLUE]
+                color_discrete_map={'Lund': ILOVE_RED, 'Övriga': ILOVE_BLUE}
             )
             fig_geo_holdings_pie.update_traces(textposition='inside', textinfo='percent+label')
             apply_brand_layout(fig_geo_holdings_pie)
