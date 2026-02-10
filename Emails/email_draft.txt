@@ -1,0 +1,15 @@
+Subject: Re: SV: API Connection - Public Key
+
+Hej [Name],
+
+Tack för informationen.
+
+Här kommer vår publika nyckel (bifogad som textfil: Euroclear_PublicKey.txt) enligt era instruktioner för API-anslutningen.
+
+Vi inväntar bekräftelse när nyckeln är registrerad hos er, samt information om när vi kan börja testa anrop mot API:et.
+
+Med vänlig hälsning,
+
+[Your Name]
+[Your Company]
+

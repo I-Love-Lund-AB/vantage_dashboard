@@ -1,0 +1,16 @@
+Ämne: Re: API-anslutning - Nu fungerar det!
+
+Hej,
+
+Tack för all hjälp! Nu fungerar allt som det ska.
+
+Jag testade med Postman som ni föreslog, och där fungerade det direkt. Det visade att token och behörigheter var korrekta, så problemet låg i min Python-kod.
+
+Efter att ha jämfört vad Postman skickade med vad min kod skickade, insåg jag att det saknades några headers. När jag lade till User-Agent och Content-Type headers explicit i koden, började allt fungera direkt.
+
+Nu kan jag hämta data för vårt bolag (I LOVE LUND AB) och dashboarden fungerar som den ska.
+
+Tack igen för ert tålamod och stöd!
+
+Mvh,
+Axel

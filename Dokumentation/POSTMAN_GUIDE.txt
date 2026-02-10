@@ -1,0 +1,63 @@
+POSTMAN TEST - ENKEL METOD
+===========================
+
+Detta är den ENKLASTE metoden för att testa i Postman med samma token som Python genererar.
+
+STEG 1: HÄMTA EN TOKEN FRÅN PYTHON
+-----------------------------------
+1. Öppna terminal/PowerShell
+2. Navigera till projektmappen:
+   cd vantage_dashboard
+
+3. Kör debug-scriptet:
+   python debug_token.py
+
+4. Kopiera token-strängen som visas längst ner (efter "FULLSTÄNDIG TOKEN")
+   Token börjar med: eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIs...
+
+STEG 2: KONFIGURERA POSTMAN
+----------------------------
+1. Öppna Postman
+2. Skapa en ny GET-request
+3. URL: https://vantage-api.euroclear.com/anz/api/external/issuermetadata
+
+4. Gå till fliken "Authorization" (längst upp)
+5. I dropdown-menyn "Type", välj: "Bearer Token"
+6. I fältet "Token", klistra in token-strängen du kopierade från Python
+7. Klicka "Send"
+
+STEG 3: TESTA BÅDA ENDPOINTS
+----------------------------
+Testa dessa två endpoints med samma token:
+
+1. GET https://vantage-api.euroclear.com/anz/api/external/issuermetadata
+   - Förväntat svar: 200 OK med lista av bolag, ELLER 403 Forbidden
+
+2. GET https://vantage-api.euroclear.com/anz/api/external/completeregister?isin=SE0018397648&holdingDate=2025-12-30
+   - Förväntat svar: 200 OK med data, ELLER 403 Forbidden
+
+VIKTIGT:
+--------
+- Token är giltig i cirka 1 timme
+- Om token går ut, kör debug_token.py igen för att få en ny
+- Om du får 401 Unauthorized = Token är ogiltig/utgången, hämta en ny
+- Om du får 403 Forbidden = Samma problem som i Python (behörighetsproblem)
+
+ALTERNATIV: AUTOMATISK TOKEN-HÄMTNING I POSTMAN
+------------------------------------------------
+Om du vill att Postman automatiskt hämtar token (mer avancerat):
+
+1. I Postman, gå till Authorization-fliken
+2. Välj typ: "OAuth 2.0"
+3. Klicka "Get New Access Token"
+4. Fyll i:
+   - Token Name: Euroclear Vantage
+   - Grant Type: Client Credentials
+   - Access Token URL: https://login.microsoftonline.com/d33d1ba6-ea24-46f5-a96b-0fcd7063ba95/oauth2/v2.0/token
+   - Client ID: fd3f33f5-5dc1-4436-90be-c0048154d740
+   - Client Secret: (LÄMNA TOMT)
+   - Scope: https://euroclearb2c01.onmicrosoft.com/50847126-307e-4d59-8f4c-3a7ab6773609/.default
+   - Client Authentication: Send as Basic Auth header
+
+OBS: Postman kan ha problem med certifikat-baserad auth i OAuth-flödet.
+Om detta inte fungerar, använd metoden ovan (manuell token från Python).

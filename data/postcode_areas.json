@@ -1,0 +1,158 @@
+{
+  "221": {
+    "name": "Universitetet / kommunen",
+    "short_name": "Universitetet",
+    "main_streets": [],
+    "all_streets": [],
+    "areas": [],
+    "city": "LUND",
+    "total_records": 1
+  },
+  "222": {
+    "name": "Centrum, Norra innerstaden, Klostergården",
+    "short_name": "Centrum",
+    "main_streets": [
+      "ALBOGATAN",
+      "KLOSTERGATAN 10 LGH",
+      "KUNG OSKARS VÄG 15 B LGH",
+      "SVANEGATAN",
+      "ÖLANDSVÄGEN"
+    ],
+    "all_streets": [
+      "ALBOGATAN",
+      "KLOSTERGATAN 10 LGH",
+      "KUNG OSKARS VÄG 15 B LGH",
+      "SVANEGATAN",
+      "ÖLANDSVÄGEN",
+      "MARGARETAVÄGEN 3 H LGH",
+      "TERMINALGATAN 4 LGH",
+      "FABRIKSGATAN 5 C LGH",
+      "SOCKERKOKAREGATAN 12 LGH",
+      "NORRA PROMENADEN 3 A LGH"
+    ],
+    "areas": [],
+    "city": "LUND",
+    "total_records": 73
+  },
+  "223": {
+    "name": "Professorstaden, Nöden",
+    "short_name": "Professorstaden",
+    "main_streets": [
+      "GERDAGATAN",
+      "TUNAVÄGEN",
+      "SÖDRA ESPLANADEN 3 D LGH",
+      "Västra Mårtensgatan 1 lgh",
+      "VÄSTRA MÅRTENSGATAN 1 LGH"
+    ],
+    "all_streets": [
+      "GERDAGATAN",
+      "TUNAVÄGEN",
+      "SÖDRA ESPLANADEN 3 D LGH",
+      "Västra Mårtensgatan 1 lgh",
+      "VÄSTRA MÅRTENSGATAN 1 LGH",
+      "SCHEELEVÄGEN",
+      "FINNGATAN",
+      "AGARDHSGATAN",
+      "GYLLEHOLMSGATAN 30 LGH",
+      "SANDGATAN 12 A LGH"
+    ],
+    "areas": [],
+    "city": "LUND",
+    "total_records": 39
+  },
+  "224": {
+    "name": "Öster: Brunnshög, Mårtens Fälad, Linero, Tuna, Östra Torn",
+    "short_name": "Öster",
+    "main_streets": [
+      "PEDELLGATAN",
+      "LINNÉGATAN",
+      "SYRENVÄGEN",
+      "WARHOLMS VÄG 8 C LGH",
+      "HJALMAR GULLBERGS VÄG"
+    ],
+    "all_streets": [
+      "PEDELLGATAN",
+      "LINNÉGATAN",
+      "SYRENVÄGEN",
+      "WARHOLMS VÄG 8 C LGH",
+      "HJALMAR GULLBERGS VÄG",
+      "SOPRANGRÄNDEN",
+      "DRAPAVÄGEN",
+      "STUDENTGATAN",
+      "PÄRONVÄGEN",
+      "NORDMANNAVÄGEN"
+    ],
+    "areas": [
+      "Brunnshög"
+    ],
+    "city": "LUND",
+    "total_records": 69
+  },
+  "225": {
+    "name": "Stångby Kyrkby, Västra Hoby, Svenstorp, Vadmölla",
+    "short_name": "Stångby Kyrkby",
+    "main_streets": [
+      "STÅNGBY",
+      "SVENSTORPS SLOTT"
+    ],
+    "all_streets": [
+      "STÅNGBY",
+      "SVENSTORPS SLOTT"
+    ],
+    "areas": [],
+    "city": "LUND",
+    "total_records": 4
+  },
+  "226": {
+    "name": "Nöbbelöv, Gunnesbo, Stångby",
+    "short_name": "Nöbbelöv",
+    "main_streets": [
+      "RUDEBOKSVÄGEN",
+      "OSCARSHEMSVÄGEN",
+      "NYCKELKROKEN",
+      "SKYTTELINJEN",
+      "VÄLKOMSTGRÄNDEN"
+    ],
+    "all_streets": [
+      "RUDEBOKSVÄGEN",
+      "OSCARSHEMSVÄGEN",
+      "NYCKELKROKEN",
+      "SKYTTELINJEN",
+      "VÄLKOMSTGRÄNDEN",
+      "PISTOLVÄGEN",
+      "TRAKTORVÄGEN",
+      "ÄDELSTENSVÄGEN",
+      "TRUMSLAGAREGRÄNDEN",
+      "PROTOKOLLGRÄNDEN"
+    ],
+    "areas": [],
+    "city": "LUND",
+    "total_records": 30
+  },
+  "227": {
+    "name": "Väster",
+    "short_name": "Väster",
+    "main_streets": [
+      "HÖKVÄGEN",
+      "ASKERSKA RESIDENSET",
+      "HUSMANSVÄGEN",
+      "STADSBUDSGATAN",
+      "BOKBINDAREGATAN 7 LGH"
+    ],
+    "all_streets": [
+      "HÖKVÄGEN",
+      "ASKERSKA RESIDENSET",
+      "HUSMANSVÄGEN",
+      "STADSBUDSGATAN",
+      "BOKBINDAREGATAN 7 LGH",
+      "HANTVERKSGATAN 16 LGH",
+      "KAPRIFOLIEVÄGEN",
+      "FJELIEVÄGEN 15 A LGH",
+      "KYRKOLED",
+      "TUNNBINDAREGATAN"
+    ],
+    "areas": [],
+    "city": "LUND",
+    "total_records": 30
+  }
+}

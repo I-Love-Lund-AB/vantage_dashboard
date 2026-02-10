@@ -1,0 +1,31 @@
+Ämne: Re: API-anslutning - Token och applikationsinformation
+
+Hej,
+
+Här är den information ni bad om:
+
+1. Applikation:
+Jag använder Python med Microsoft Authentication Library (MSAL) för att hämta tokens, och requests-biblioteket för API-anrop. Konfigurationen följer er dokumentation (Euroclear Sweden Vantage API Connection Guide Common v1.1).
+
+2. Token (JWT):
+Token genereras framgångsrikt. Här är en aktuell token:
+
+eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IlBjWDk4R1g0MjBUMVg2c0JEa3poUW1xZ3dNVSJ9.eyJhdWQiOiI1MDg0NzEyNi0zMDdlLTRkNTktOGY0Yy0zYTdhYjY3NzM2MDkiLCJpc3MiOiJodHRwczovL2xvZ2luLm1pY3Jvc29mdG9ubGluZS5jb20vZDMzZDFiYTYtZWEyNC00NmY1LWE5NmItMGZjZDcwNjNiYTk1L3YyLjAiLCJpYXQiOjE3NjgzNTQ1NjQsIm5iZiI6MTc2ODM1NDU2NCwiZXhwIjoxNzY4MzU4NDY0LCJhaW8iOiJBU1FBMi84YUFBQUF4ekxuaHdLU2o2UmFYd1NQR25ibHVtL00zaSs0ODdwaFl6N2o2Mjc3Wk5BPSIsImF6cCI6ImZkM2YzM2Y1LTVkYzEtNDQzNi05MGJlLWMwMDQ4MTU0ZDc0MCIsImF6cGFjciI6IjIiLCJvaWQiOiIwYWU5OTdkNi1iMjFhLTQ4MjItYjljYi1jZjNiOTE5ZGQzNDQiLCJyaCI6IjEuQVNNQXBoczkweVRxOVVhcGF3X05jR082bFNaeGhGQi1NRmxOajB3NmVyWjNOZ2tqQUFBakFBLiIsInJvbGVzIjpbIkV4dGVybmFsRGF0YVJlYWRfMyIsIkV4dGVybmFsRGF0YVJlYWRfMiIsIkV4dGVybmFsRGF0YVJlYWRfMSJdLCJzdWIiOiIwYWU5OTdkNi1iMjFhLTQ4MjItYjljYi1jZjNiOTE5ZGQzNDQiLCJ0aWQiOiJkMzNkMWJhNi1lYTI0LTQ2ZjUtYTk2Yi0wZmNkNzA2M2JhOTUiLCJ1dGkiOiJVNmNGOUNZV2ZVU3pJNVJtbDVZVUFBIiwidmVyIjoiMi4wIiwieG1zX2Z0ZCI6IjVVd2xFUUFlYlpXenV2NGtLVGNWWXR1Ymg3U1JDY0NOVDNxZFFCRWpyTk1CWm5KaGJtTmxZeTFrYzIxeiJ9.ehv-iFyVhsWaKLP4TuESVPYrOU49VOIXwt-x-On7UAcGNwsgF12eBN21T64dl5d8lrW_Jvr67tuwprA4bBC-KXWvyqsaW1ee6ApxALfx8yit8sLZs4qrjjbRG_aidL10F_yjEbPX5ev6NdM8-7HcqAuVUsH9xIEp5edf1bTZo7OjJRDYFpoHw_cKlFyPNdSbAfR7GGKjPMlgFKNi5cW2QMIB9jSzLZBuANy5Ds1JTlKSKME5w2iXU4I8k7UCwUA4YkVy4_Yo4G2_3HfHS2FC3Y1Ogm7o_d0KTPVWTWpgmuI18CXuyOJTHR_LH7I1OqWYdsaa9jE9rKFQdypyV5LQog
+
+3. Token-innehåll (avkodat):
+- Audience (aud): 50847126-307e-4d59-8f4c-3a7ab6773609 (ESW Vantage Application ID)
+- Issuer (iss): https://login.microsoftonline.com/d33d1ba6-ea24-46f5-a96b-0fcd7063ba95/v2.0
+- App ID (azp): fd3f33f5-5dc1-4436-90be-c0048154d740 (Client ID)
+- Roles: ExternalDataRead_3, ExternalDataRead_2, ExternalDataRead_1
+
+4. Problem:
+Även med en giltig token med rätt roles får jag fortfarande 403 Forbidden på både:
+- /issuermetadata
+- /completeregister?isin=SE0018397648&holdingDate=2025-12-30
+
+5. Postman-test:
+Jag ska testa med Postman också. Vilken metod rekommenderar ni för att använda samma certifikat i Postman?
+
+Mvh,
+Axel
+

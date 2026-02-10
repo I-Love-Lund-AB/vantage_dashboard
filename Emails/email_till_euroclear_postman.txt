@@ -1,0 +1,17 @@
+Hej,
+
+Tack för återkopplingen. Jag ska testa med Postman enligt era instruktioner.
+
+Jag har konfigurerat Postman med samma certifikat (client_cert.pfx) och försökt hämta en token via OAuth 2.0 Client Credentials flow med följande inställningar:
+
+- Token URL: https://login.microsoftonline.com/d33d1ba6-ea24-46f5-a96b-0fcd7063ba95/oauth2/v2.0/token
+- Client ID: fd3f33f5-5dc1-4436-90be-c0048154d740
+- Scope: https://euroclearb2c01.onmicrosoft.com/50847126-307e-4d59-8f4c-3a7ab6773609/.default
+
+[Lägg till här resultatet från dina Postman-tester]
+
+Jag har också noterat att ni nämner att det har krävts anpassningar av Python-script för andra kunder. Skulle ni kunna ge mig några ledtrådar om vilka typer av anpassningar som har behövts? Detta skulle hjälpa mig att identifiera vad som kan vara fel i min implementation.
+
+Mvh,
+Axel
+

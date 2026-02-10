@@ -1,0 +1,42 @@
+# Känsliga filer - LADDA INTE UPP DESSA!
+certs/
+*.pem
+*.p12
+*.pfx
+.env
+
+# API-nycklar och hemligheter
+secrets.toml
+
+# Data med personuppgifter
+data/shareholders_history.csv
+data/aktieagare_*.csv
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Lokala output-filer
+output/
+Rapporter/
+*.xlsx
+
+# IDE-filer
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS-filer
+.DS_Store
+Thumbs.db
+
+# Loggfiler
+*.log
+
+# Tillfälliga filer
+*.tmp
+*.bak
+
