@@ -19,7 +19,7 @@ Detta dokument beskriver allt som behövs för att ta över förvaltningen av Ak
 
 ### 2. Streamlit Cloud (Hosting)
 - **URL:** https://share.streamlit.io
-- **App-URL:** (den URL ni delar med kollegor)
+- **App-URL:** https://ilovelund-dashboard.streamlit.app/
 - **Syfte:** Här körs dashboarden live på internet
 - **Överlämning:**
   1. Logga in på share.streamlit.io
