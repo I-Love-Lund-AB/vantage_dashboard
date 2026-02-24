@@ -1230,9 +1230,18 @@ else:
                         x=latest_date,
                         line_width=2,
                         line_dash="dash",
-                        line_color=ILOVE_RED,
-                        annotation_text="Vald tidpunkt",
-                        annotation_position="top right"
+                        line_color=ILOVE_RED
+                    )
+                    # Undvik Plotly-bugg med datetime + annotation_text i add_vline
+                    fig_trend.add_annotation(
+                        x=latest_date,
+                        y=1,
+                        yref="paper",
+                        text="Vald tidpunkt",
+                        showarrow=False,
+                        xanchor="left",
+                        yanchor="bottom",
+                        font=dict(color=ILOVE_RED, size=11)
                     )
                     apply_brand_layout(fig_trend)
                     st.plotly_chart(fig_trend, use_container_width=True)
