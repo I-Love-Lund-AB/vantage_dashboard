@@ -1215,79 +1215,15 @@ else:
     kpi2.metric("Ägare < 500 Aktier", small_holders)
     kpi3.metric("Ägare ≥ 500 Aktier", large_holders)
 
-    # Ny funktion: Komplett lista över senaste aktieägare och innehav
-    st.markdown("### Komplett Aktieägarlista (Senaste)")
-    if 'show_latest_owner_list' not in st.session_state:
-        st.session_state['show_latest_owner_list'] = False
-
-    if st.button("Visa komplett lista (senaste datum)", key="show_latest_owner_list_btn"):
-        st.session_state['show_latest_owner_list'] = True
-
-    if st.session_state.get('show_latest_owner_list', False):
-        latest_date_str = latest_available_date.strftime("%Y-%m-%d")
-        st.caption(f"Listan visar senaste tillgängliga data: **{latest_date_str}**")
-
-        if latest_full_owners.empty:
-            st.info("Ingen data tillgänglig för senaste datum.")
-        else:
-            full_csv_name = f"aktieagarlista_senaste_{latest_date_str}.csv"
-            full_xlsx_name = f"aktieagarlista_senaste_{latest_date_str}.xlsx"
-            anon_csv_name = f"aktieagarlista_senaste_anonymiserad_{latest_date_str}.csv"
-            anon_xlsx_name = f"aktieagarlista_senaste_anonymiserad_{latest_date_str}.xlsx"
-
-            if st.session_state.get('data_access_authenticated', False):
-                st.success("🔓 Fullständig lista visas (autentiserad).")
-                st.dataframe(latest_full_owners, use_container_width=True)
-
-                col_dl_csv, col_dl_xlsx = st.columns(2)
-                with col_dl_csv:
-                    st.download_button(
-                        "Ladda ner CSV (fullständig)",
-                        latest_full_owners.to_csv(index=False).encode("utf-8-sig"),
-                        full_csv_name,
-                        "text/csv",
-                        key="dl_latest_full_csv"
-                    )
-                with col_dl_xlsx:
-                    st.download_button(
-                        "Ladda ner Excel (fullständig)",
-                        dataframe_to_excel_bytes(latest_full_owners, sheet_name="Aktieagare"),
-                        full_xlsx_name,
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key="dl_latest_full_xlsx"
-                    )
-            else:
-                st.warning("⚠️ Fullständig lista är GDPR-skyddad. Visar anonymiserad version.")
-                anonymized_latest = anonymize_sensitive_dataframe(latest_full_owners)
-                st.dataframe(anonymized_latest, use_container_width=True)
-
-                col_dl_csv, col_dl_xlsx = st.columns(2)
-                with col_dl_csv:
-                    st.download_button(
-                        "Ladda ner CSV (anonymiserad)",
-                        anonymized_latest.to_csv(index=False).encode("utf-8-sig"),
-                        anon_csv_name,
-                        "text/csv",
-                        key="dl_latest_anon_csv"
-                    )
-                with col_dl_xlsx:
-                    st.download_button(
-                        "Ladda ner Excel (anonymiserad)",
-                        dataframe_to_excel_bytes(anonymized_latest, sheet_name="Aktieagare"),
-                        anon_xlsx_name,
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key="dl_latest_anon_xlsx"
-                    )
-                st.info("Lås upp via lösenord i sektionen 'Visa Rådata' för att se och ladda ner fullständig lista.")
-
     # Analys Tabbar
     st.markdown("### Analys")
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "Översikt & Trender",
         "Distribution",
         "Geografi (Lund Fokus)",
         "Ägartyper",
-        "Cap Table - topp 50"
+        "Cap Table - topp 50",
+        "Komplett Ägarlista"
     ])
     
     # Initiera alla figurer för export
@@ -1866,6 +1802,73 @@ else:
 - **Förändring Holding Quantity**: Pil och antal aktier som ägandet har ökat (↑) eller minskat (↓) med jämfört med referensdatum. `→ 0` betyder oförändrat, `Ny ↑` betyder ny ägare.
 - **Obs:** Personer som äger aktier både i eget namn (fysisk person) och via bolag visas som separata rader och aggregeras inte.
 """)
+
+    # TAB 6: Komplett ägarlista (senaste)
+    with tab6:
+        st.markdown("#### Komplett ägarlista (senaste tillgängliga datum)")
+        latest_date_str = latest_available_date.strftime("%Y-%m-%d")
+        st.caption(f"Listan visar senaste tillgängliga data: **{latest_date_str}**")
+
+        if latest_full_owners.empty:
+            st.info("Ingen data tillgänglig för senaste datum.")
+        else:
+            full_xlsx_name = f"aktieagarlista_senaste_{latest_date_str}.xlsx"
+            anon_xlsx_name = f"aktieagarlista_senaste_anonymiserad_{latest_date_str}.xlsx"
+
+            # Lösenordsfält direkt i denna flik för avanonymisering
+            if not st.session_state.get('data_access_authenticated', False):
+                st.warning("⚠️ GDPR-skydd: Listan är anonymiserad tills korrekt lösenord anges.")
+
+                col_unlock_input, col_unlock_btn = st.columns([2, 1])
+                with col_unlock_input:
+                    owner_list_password = st.text_input(
+                        "Lösenord för att visa fullständig lista:",
+                        type="password",
+                        key="owner_list_password",
+                        help="Ange samma lösenord som används för rådata och Cap Table."
+                    )
+                with col_unlock_btn:
+                    st.write("")
+                    st.write("")
+                    if st.button("🔓 Avanonymisera lista", type="primary", key="owner_list_unlock"):
+                        stored_hash = get_password_hash()
+                        if verify_password(owner_list_password, stored_hash):
+                            st.session_state['data_access_authenticated'] = True
+                            st.success("✅ Autentisering lyckades! Fullständig lista upplåst.")
+                            st.rerun()
+                        else:
+                            st.error("❌ Felaktigt lösenord!")
+
+                anonymized_latest = anonymize_sensitive_dataframe(latest_full_owners)
+                st.dataframe(anonymized_latest, use_container_width=True)
+
+                st.download_button(
+                    "Ladda ner Excel (anonymiserad)",
+                    dataframe_to_excel_bytes(anonymized_latest, sheet_name="Aktieagare"),
+                    anon_xlsx_name,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="dl_latest_tab_anon_xlsx"
+                )
+            else:
+                st.success("🔓 Fullständig lista visas (autentiserad).")
+
+                col_info, col_lock = st.columns([3, 1])
+                with col_info:
+                    st.warning("⚠️ Varning: Du ser nu känsliga personuppgifter. Hantera informationen enligt GDPR.")
+                with col_lock:
+                    if st.button("🔒 Anonymisera igen", type="secondary", key="owner_list_relock"):
+                        st.session_state['data_access_authenticated'] = False
+                        st.rerun()
+
+                st.dataframe(latest_full_owners, use_container_width=True)
+
+                st.download_button(
+                    "Ladda ner Excel (fullständig)",
+                    dataframe_to_excel_bytes(latest_full_owners, sheet_name="Aktieagare"),
+                    full_xlsx_name,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="dl_latest_tab_full_xlsx"
+                )
 
     # --- RAPPORT ---
     st.markdown("---")
