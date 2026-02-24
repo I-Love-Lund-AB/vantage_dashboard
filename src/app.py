@@ -248,16 +248,16 @@ def apply_brand_layout(fig):
     return fig
 
 # --- HJÄLPFUNKTIONER ---
-def get_last_month_end_date():
+def get_last_business_day_prev_month():
     """
-    Räknar ut sista dagen i föregående månad.
-    Detta är oftast datumet då ny data finns tillgänglig.
+    Räknar ut sista helgfria vardagen i föregående månad.
+    Backar från sista kalenderdagen tills en måndag–fredag hittas.
     """
     today = datetime.today()
-    # Första dagen i denna månad
     first_of_this_month = today.replace(day=1)
-    # Sista dagen i förra månaden är dagen innan första dagen i denna månad
     last_month_end = first_of_this_month - timedelta(days=1)
+    while last_month_end.weekday() >= 5:
+        last_month_end -= timedelta(days=1)
     return last_month_end
 
 
@@ -1038,18 +1038,19 @@ def enrich_owner_data(df: pd.DataFrame, reference_date: datetime = None) -> pd.D
 st.sidebar.title("KONFIGURATION")
 
 # HÅRDKODAT STANDARD-DATUM: Sista dagen i förra månaden
-default_date = get_last_month_end_date()
+default_date = get_last_business_day_prev_month()
 
 def render_fetch_data_sidebar():
     """Renderar sektionen för att hämta ny data från API."""
     st.sidebar.markdown("---")
     st.sidebar.header("📥 Hämta Ny Data")
+    st.sidebar.caption("Välj sista helgfria vardagen i föregående månad för att hämta nya data.")
     st.sidebar.write(f"**Bolag:** {BOLAGSNAMN}")
 
     fetch_date = st.sidebar.date_input(
         "Datum",
         value=default_date,
-        help="Välj sista dagen i månaden du vill hämta data för."
+        help="Välj sista helgfria vardagen i föregående månad."
     )
 
     if st.sidebar.button("Hämta Data"):
