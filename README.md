@@ -4,7 +4,7 @@ En Streamlit-dashboard för att analysera aktieägardata för I Love Lund AB.
 
 ## 🌐 Live Dashboard
 
-**URL:** https://vantage-dashboard.streamlit.app *(uppdatera med din faktiska URL)*
+**URL:** https://ilovelund-dashboard.streamlit.app/
 
 Dashboarden körs på Streamlit Community Cloud och är tillgänglig för alla med länken.
 
@@ -17,6 +17,7 @@ Dashboarden körs på Streamlit Community Cloud och är tillgänglig för alla m
 - **Geografi** - Analysera var aktieägarna bor (fokus på Lund)
 - **Ägartyper** - Fysiska vs juridiska personer, köns- och åldersfördelning
 - **Cap Table** - Topp 50 största ägare med historisk jämförelse (lösenordsskyddad)
+- **Komplett Ägarlista** - Fullständig lista med alla aktieägare och deras innehav (lösenordsskyddad)
 
 ---
 
