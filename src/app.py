@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.io as pio
 import time
 from datetime import datetime, timedelta
+from io import BytesIO
 import hashlib
 import hmac
 import json
@@ -293,6 +294,64 @@ def filter_by_time_period(df, date_col, period):
     
     start_date = pd.Timestamp(start_date)
     return df[df[date_col] >= start_date].copy()
+
+
+def anonymize_sensitive_dataframe(df: pd.DataFrame, drop_address_columns: bool = True) -> pd.DataFrame:
+    """
+    Returnerar en anonymiserad version av DataFrame för säker visning/export.
+    """
+    if df is None or df.empty:
+        return pd.DataFrame() if df is None else df.copy()
+
+    result = df.copy()
+
+    def anonymize_pnr(x):
+        x_str = str(x)
+        if x_str and x_str != 'nan' and len(x_str) > 4:
+            return f"{x_str[:2]}***{x_str[-2:]}"
+        return "***"
+
+    def anonymize_name(x):
+        x_str = str(x)
+        if x_str and x_str != 'nan' and len(x_str) > 0:
+            return f"{x_str[0]}***"
+        return "***"
+
+    def anonymize_address(x):
+        x_str = str(x)
+        if x_str and x_str != 'nan':
+            parts = x_str.split()
+            if len(parts) > 0:
+                return f"{parts[0]}***"
+        return "***"
+
+    if 'pnrOrgnr' in result.columns:
+        result['pnrOrgnr'] = result['pnrOrgnr'].apply(anonymize_pnr)
+    if 'name' in result.columns:
+        result['name'] = result['name'].apply(anonymize_name)
+    if 'streetAddress' in result.columns:
+        result['streetAddress'] = result['streetAddress'].apply(anonymize_address)
+    if 'coAddress' in result.columns:
+        result['coAddress'] = result['coAddress'].apply(anonymize_address)
+    if 'coAdress' in result.columns:
+        result['coAdress'] = result['coAdress'].apply(anonymize_address)
+
+    if drop_address_columns:
+        safe_columns = [col for col in result.columns if col not in ['streetAddress', 'coAddress', 'coAdress']]
+        result = result[safe_columns]
+
+    return result
+
+
+def dataframe_to_excel_bytes(df: pd.DataFrame, sheet_name: str = "Data") -> bytes:
+    """
+    Konverterar DataFrame till .xlsx bytes för Streamlit download_button.
+    """
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name=sheet_name)
+    output.seek(0)
+    return output.getvalue()
 
 
 def get_reference_date_one_year_back(df: pd.DataFrame, latest_date: pd.Timestamp) -> pd.Timestamp | None:
@@ -1113,6 +1172,12 @@ else:
     latest_available_date = filtered_df['date'].dt.normalize().max()
     latest_date = pd.Timestamp(selected_snapshot_date).normalize()
     latest_data_raw = filtered_df[filtered_df['date'].dt.normalize() == latest_date]
+
+    # Komplett ägarlista för SENASTE tillgängliga datum (oberoende av vald historisk vy)
+    latest_full_raw = filtered_df[filtered_df['date'].dt.normalize() == latest_available_date].copy()
+    latest_full_owners = merge_ab_shares(latest_full_raw)
+    if 'holdingsQuantity' in latest_full_owners.columns:
+        latest_full_owners = latest_full_owners.sort_values('holdingsQuantity', ascending=False).reset_index(drop=True)
     
     # Slå ihop A- och B-aktier per ägare
     latest_data = merge_ab_shares(latest_data_raw)
@@ -1149,6 +1214,71 @@ else:
     kpi1.metric("Totalt Antal Ägare", total_holders)
     kpi2.metric("Ägare < 500 Aktier", small_holders)
     kpi3.metric("Ägare ≥ 500 Aktier", large_holders)
+
+    # Ny funktion: Komplett lista över senaste aktieägare och innehav
+    st.markdown("### Komplett Aktieägarlista (Senaste)")
+    if 'show_latest_owner_list' not in st.session_state:
+        st.session_state['show_latest_owner_list'] = False
+
+    if st.button("Visa komplett lista (senaste datum)", key="show_latest_owner_list_btn"):
+        st.session_state['show_latest_owner_list'] = True
+
+    if st.session_state.get('show_latest_owner_list', False):
+        latest_date_str = latest_available_date.strftime("%Y-%m-%d")
+        st.caption(f"Listan visar senaste tillgängliga data: **{latest_date_str}**")
+
+        if latest_full_owners.empty:
+            st.info("Ingen data tillgänglig för senaste datum.")
+        else:
+            full_csv_name = f"aktieagarlista_senaste_{latest_date_str}.csv"
+            full_xlsx_name = f"aktieagarlista_senaste_{latest_date_str}.xlsx"
+            anon_csv_name = f"aktieagarlista_senaste_anonymiserad_{latest_date_str}.csv"
+            anon_xlsx_name = f"aktieagarlista_senaste_anonymiserad_{latest_date_str}.xlsx"
+
+            if st.session_state.get('data_access_authenticated', False):
+                st.success("🔓 Fullständig lista visas (autentiserad).")
+                st.dataframe(latest_full_owners, use_container_width=True)
+
+                col_dl_csv, col_dl_xlsx = st.columns(2)
+                with col_dl_csv:
+                    st.download_button(
+                        "Ladda ner CSV (fullständig)",
+                        latest_full_owners.to_csv(index=False).encode("utf-8-sig"),
+                        full_csv_name,
+                        "text/csv",
+                        key="dl_latest_full_csv"
+                    )
+                with col_dl_xlsx:
+                    st.download_button(
+                        "Ladda ner Excel (fullständig)",
+                        dataframe_to_excel_bytes(latest_full_owners, sheet_name="Aktieagare"),
+                        full_xlsx_name,
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="dl_latest_full_xlsx"
+                    )
+            else:
+                st.warning("⚠️ Fullständig lista är GDPR-skyddad. Visar anonymiserad version.")
+                anonymized_latest = anonymize_sensitive_dataframe(latest_full_owners)
+                st.dataframe(anonymized_latest, use_container_width=True)
+
+                col_dl_csv, col_dl_xlsx = st.columns(2)
+                with col_dl_csv:
+                    st.download_button(
+                        "Ladda ner CSV (anonymiserad)",
+                        anonymized_latest.to_csv(index=False).encode("utf-8-sig"),
+                        anon_csv_name,
+                        "text/csv",
+                        key="dl_latest_anon_csv"
+                    )
+                with col_dl_xlsx:
+                    st.download_button(
+                        "Ladda ner Excel (anonymiserad)",
+                        dataframe_to_excel_bytes(anonymized_latest, sheet_name="Aktieagare"),
+                        anon_xlsx_name,
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="dl_latest_anon_xlsx"
+                    )
+                st.info("Lås upp via lösenord i sektionen 'Visa Rådata' för att se och ladda ner fullständig lista.")
 
     # Analys Tabbar
     st.markdown("### Analys")
@@ -2327,47 +2457,8 @@ else:
                     else:
                         st.error("❌ Felaktigt lösenord!")
             
-            # Visa anonymiserad data
-            display_df = filtered_df.copy()
-            
-            # Anonymisera känsliga personuppgifter
-            def anonymize_pnr(x):
-                """Anonymisera personnummer: XX***XX"""
-                x_str = str(x)
-                if x_str and x_str != 'nan' and len(x_str) > 4:
-                    return f"{x_str[:2]}***{x_str[-2:]}"
-                return "***"
-            
-            def anonymize_name(x):
-                """Anonymisera namn: A***"""
-                x_str = str(x)
-                if x_str and x_str != 'nan' and len(x_str) > 0:
-                    return f"{x_str[0]}***"
-                return "***"
-            
-            def anonymize_address(x):
-                """Anonymisera adress: Första ordet + ***"""
-                x_str = str(x)
-                if x_str and x_str != 'nan':
-                    parts = x_str.split()
-                    if len(parts) > 0:
-                        return f"{parts[0]}***"
-                return "***"
-            
-            # Applicera anonymisering
-            if 'pnrOrgnr' in display_df.columns:
-                display_df['pnrOrgnr'] = display_df['pnrOrgnr'].apply(anonymize_pnr)
-            if 'name' in display_df.columns:
-                display_df['name'] = display_df['name'].apply(anonymize_name)
-            if 'streetAddress' in display_df.columns:
-                display_df['streetAddress'] = display_df['streetAddress'].apply(anonymize_address)
-            if 'coAdress' in display_df.columns:
-                display_df['coAdress'] = display_df['coAdress'].apply(anonymize_address)
-            
-            # Visa endast relevanta kolumner för analys (exkludera känsliga fält helt)
-            safe_columns = [col for col in display_df.columns if col not in ['streetAddress', 'coAdress']]
-            display_df = display_df[safe_columns]
-            
+            # Visa anonymiserad data (återanvänder gemensam hjälpfunktion)
+            display_df = anonymize_sensitive_dataframe(filtered_df)
             st.dataframe(display_df, use_container_width=True)
             
             st.info("💡 **Tips:** Ange lösenord ovan för att visa fullständig data. Se GDPR_GUIDE.md för mer information om dataskydd.")
