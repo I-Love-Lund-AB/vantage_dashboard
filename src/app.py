@@ -978,85 +978,83 @@ def enrich_owner_data(df: pd.DataFrame, reference_date: datetime = None) -> pd.D
 # --- SIDEBAR (Konfiguration) ---
 st.sidebar.title("KONFIGURATION")
 
-# 1. Hämta Data
-st.sidebar.header("Hämta Aktiebok")
-
 # HÅRDKODAT STANDARD-DATUM: Sista dagen i förra månaden
 default_date = get_last_month_end_date()
 
-# ISIN och BOLAGSNAMN importeras från config.py
+def render_fetch_data_sidebar():
+    """Renderar sektionen för att hämta ny data från API."""
+    st.sidebar.markdown("---")
+    st.sidebar.header("📥 Hämta Ny Data")
+    st.sidebar.write(f"**Bolag:** {BOLAGSNAMN}")
 
-# Input-fält (endast datum, ISIN är hårdkodat)
-st.sidebar.write(f"**Bolag:** {BOLAGSNAMN}")
+    fetch_date = st.sidebar.date_input(
+        "Datum",
+        value=default_date,
+        help="Välj sista dagen i månaden du vill hämta data för."
+    )
 
-fetch_date = st.sidebar.date_input("Datum", value=default_date, 
-                                   help="Välj sista dagen i månaden du vill hämta data för.")
-
-if st.sidebar.button("Hämta Data"):
-    if client:
-        with st.spinner(f"Hämtar data för {fetch_date}..."):
-            try:
-                date_str = fetch_date.strftime("%Y-%m-%d")
-                all_records = []
-                
-                # Hämta data för BÅDE A- och B-aktier
-                for share_class, isin in [('A', ISIN_A), ('B', ISIN_B)]:
-                    response_data = client.get_complete_register(isin, date_str)
+    if st.sidebar.button("Hämta Data"):
+        if client:
+            with st.spinner(f"Hämtar data för {fetch_date}..."):
+                try:
+                    date_str = fetch_date.strftime("%Y-%m-%d")
+                    all_records = []
                     
-                    if response_data and 'holdings' in response_data:
-                        holdings_list = response_data['holdings']
+                    # Hämta data för BÅDE A- och B-aktier
+                    for share_class, isin in [('A', ISIN_A), ('B', ISIN_B)]:
+                        response_data = client.get_complete_register(isin, date_str)
                         
-                        # Metadata för varje rad
-                        metadata = {
-                            'isin': response_data.get('isin', isin),
-                            'shareClass': share_class,
-                            'issuerName': response_data.get('issuerName', 'Unknown'),
-                            'holdingDate': response_data.get('holdingDate', date_str),
-                            'issuedQuantity': response_data.get('issuedQuantity', 0),
-                            'votingRight': response_data.get('votingRight', 1)
-                        }
-                        
-                        # Platta ut
-                        for h in holdings_list:
-                            record = h.copy()
-                            record.update(metadata)
-                            record['date'] = metadata['holdingDate'][:10]
-                            all_records.append(record)
-                        
-                        st.sidebar.info(f"Hämtade {len(holdings_list)} {share_class}-aktieägare")
-                
-                if all_records:
-                    # Spara
-                    manager.save_data(all_records)
-                    st.sidebar.success(f"✅ Hämtade totalt {len(all_records)} poster (A + B aktier)!")
-                else:
-                    st.sidebar.warning(f"⚠️ Ingen data hittades för {date_str}. (API svarade 204 No Content).")
-                    st.sidebar.info("💡 **Tips:** API:et returnerar 204 när data saknas för detta datum. Detta kan bero på:")
-                    st.sidebar.markdown("""
-                    - Data finns inte för detta specifika datum
-                    - Data är inte tillgänglig än (för framtida datum)
-                    - För äldre datum: Data kan finnas men kräver specifikt datumformat eller annan endpoint
-                    - Försök med sista bankdagen i månaden istället för sista kalenderdagen
-                    """)
+                        if response_data and 'holdings' in response_data:
+                            holdings_list = response_data['holdings']
+                            
+                            # Metadata för varje rad
+                            metadata = {
+                                'isin': response_data.get('isin', isin),
+                                'shareClass': share_class,
+                                'issuerName': response_data.get('issuerName', 'Unknown'),
+                                'holdingDate': response_data.get('holdingDate', date_str),
+                                'issuedQuantity': response_data.get('issuedQuantity', 0),
+                                'votingRight': response_data.get('votingRight', 1)
+                            }
+                            
+                            # Platta ut
+                            for h in holdings_list:
+                                record = h.copy()
+                                record.update(metadata)
+                                record['date'] = metadata['holdingDate'][:10]
+                                all_records.append(record)
+                            
+                            st.sidebar.info(f"Hämtade {len(holdings_list)} {share_class}-aktieägare")
                     
-            except Exception as e:
-                error_msg = str(e)
-                st.sidebar.error(f"❌ API Fel: {error_msg}")
-                
-                # Ge mer specifik information om felet
-                if "400" in error_msg or "Bad Request" in error_msg:
-                    st.sidebar.info("💡 **400 Bad Request:** Kontrollera att datumet är i formatet YYYY-MM-DD och att ISIN är korrekt.")
-                elif "401" in error_msg or "Unauthorized" in error_msg:
-                    st.sidebar.info("💡 **401 Unauthorized:** Autentisering misslyckades. Kontrollera certifikat och credentials.")
-                elif "403" in error_msg or "Forbidden" in error_msg:
-                    st.sidebar.info("💡 **403 Forbidden:** Du har inte behörighet att hämta data för detta ISIN eller datum.")
-                elif "404" in error_msg:
-                    st.sidebar.info("💡 **404 Not Found:** Endpoint eller resurs hittades inte.")
-                elif "500" in error_msg:
-                    st.sidebar.info("💡 **500 Server Error:** Serverfel hos Euroclear. Försök igen senare.")
-
-# Auto-refresh
-auto_refresh = st.sidebar.checkbox("Auto-uppdatera (30s)", value=False)
+                    if all_records:
+                        # Spara
+                        manager.save_data(all_records)
+                        st.sidebar.success(f"✅ Hämtade totalt {len(all_records)} poster (A + B aktier)!")
+                    else:
+                        st.sidebar.warning(f"⚠️ Ingen data hittades för {date_str}. (API svarade 204 No Content).")
+                        st.sidebar.info("💡 **Tips:** API:et returnerar 204 när data saknas för detta datum. Detta kan bero på:")
+                        st.sidebar.markdown("""
+                        - Data finns inte för detta specifika datum
+                        - Data är inte tillgänglig än (för framtida datum)
+                        - För äldre datum: Data kan finnas men kräver specifikt datumformat eller annan endpoint
+                        - Försök med sista bankdagen i månaden istället för sista kalenderdagen
+                        """)
+                        
+                except Exception as e:
+                    error_msg = str(e)
+                    st.sidebar.error(f"❌ API Fel: {error_msg}")
+                    
+                    # Ge mer specifik information om felet
+                    if "400" in error_msg or "Bad Request" in error_msg:
+                        st.sidebar.info("💡 **400 Bad Request:** Kontrollera att datumet är i formatet YYYY-MM-DD och att ISIN är korrekt.")
+                    elif "401" in error_msg or "Unauthorized" in error_msg:
+                        st.sidebar.info("💡 **401 Unauthorized:** Autentisering misslyckades. Kontrollera certifikat och credentials.")
+                    elif "403" in error_msg or "Forbidden" in error_msg:
+                        st.sidebar.info("💡 **403 Forbidden:** Du har inte behörighet att hämta data för detta ISIN eller datum.")
+                    elif "404" in error_msg:
+                        st.sidebar.info("💡 **404 Not Found:** Endpoint eller resurs hittades inte.")
+                    elif "500" in error_msg:
+                        st.sidebar.info("💡 **500 Server Error:** Serverfel hos Euroclear. Försök igen senare.")
 
 # Initiera lund_inhabitants i session state om det inte finns
 if 'lund_inhabitants' not in st.session_state:
@@ -1067,8 +1065,14 @@ st.title("AKTIEÄGARANALYS")
 
 # Ladda historik
 df = manager.load_data()
+auto_refresh = False
 
 if df.empty:
+    st.sidebar.header("📅 Analysperiod")
+    st.sidebar.info("Ingen historik tillgänglig ännu. Hämta data för att aktivera ögonblicksbilder.")
+    render_fetch_data_sidebar()
+    auto_refresh = st.sidebar.checkbox("Auto-uppdatera (30s)", value=False)
+
     st.info("👋 Välkommen! Här kan du utforska våra aktieägares fördelning och trender.")
     st.markdown("""
     **Kom igång:**
@@ -1085,18 +1089,42 @@ else:
         filtered_df = df[df['isin'].isin([ISIN_A, ISIN_B])].copy()
     else:
         filtered_df = df.copy()
+
+    # Sidebar: Analysperiod (styr ögonblicksbild)
+    st.sidebar.header("📅 Analysperiod")
+    available_dates = sorted(
+        pd.to_datetime(filtered_df['date'].dropna().dt.normalize().unique()),
+        reverse=True
+    )
+    selected_snapshot_date = st.sidebar.selectbox(
+        "Visa ögonblicksbild från:",
+        options=available_dates,
+        index=0,
+        format_func=lambda d: pd.Timestamp(d).strftime("%Y-%m-%d")
+    )
+
+    # Sidebar: Hämta ny data (separat sektion)
+    render_fetch_data_sidebar()
+    auto_refresh = st.sidebar.checkbox("Auto-uppdatera (30s)", value=False)
     
     # KPI
     st.markdown("### Översikt")
     
-    latest_date = filtered_df['date'].max()
-    latest_data_raw = filtered_df[filtered_df['date'] == latest_date]
+    latest_available_date = filtered_df['date'].dt.normalize().max()
+    latest_date = pd.Timestamp(selected_snapshot_date).normalize()
+    latest_data_raw = filtered_df[filtered_df['date'].dt.normalize() == latest_date]
     
     # Slå ihop A- och B-aktier per ägare
     latest_data = merge_ab_shares(latest_data_raw)
     
-    # Visa senaste datum som liten info-text
-    st.caption(f"📅 **Senaste Datum:** {str(latest_date)[:10]}")
+    # Visa tydligt om användaren tittar på senaste eller historisk ögonblicksbild
+    if latest_date == latest_available_date:
+        st.caption(f"📅 **Senaste Datum:** {latest_date.strftime('%Y-%m-%d')}")
+    else:
+        st.warning(
+            f"⚠️ **Historisk vy:** Du tittar på data från {latest_date.strftime('%Y-%m-%d')} "
+            f"(senaste tillgängliga data: {latest_available_date.strftime('%Y-%m-%d')})."
+        )
     
     # Visa information om A/B-aktier om båda finns
     if 'A_shares' in latest_data.columns and 'B_shares' in latest_data.columns:
@@ -1197,6 +1225,15 @@ else:
                                       title="Antal Aktieägare över Tid",
                                       labels={'date': 'Datum', 'Shareholders Count': 'Antal Ägare'},
                                       color_discrete_sequence=[ILOVE_BLUE])
+                    # Markera vald ögonblicksbild i tidslinjen
+                    fig_trend.add_vline(
+                        x=latest_date,
+                        line_width=2,
+                        line_dash="dash",
+                        line_color=ILOVE_RED,
+                        annotation_text="Vald tidpunkt",
+                        annotation_position="top right"
+                    )
                     apply_brand_layout(fig_trend)
                     st.plotly_chart(fig_trend, use_container_width=True)
             
