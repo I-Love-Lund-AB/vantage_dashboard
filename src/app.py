@@ -1273,6 +1273,24 @@ else:
                             ticksuffix='%'
                         )
                     )
+                    # Markera vald ögonblicksbild i tidslinjen
+                    fig_pen.add_vline(
+                        x=latest_date,
+                        line_width=2,
+                        line_dash="dash",
+                        line_color=ILOVE_RED
+                    )
+                    # Undvik Plotly-bugg med datetime + annotation_text i add_vline
+                    fig_pen.add_annotation(
+                        x=latest_date,
+                        y=1,
+                        yref="paper",
+                        text="Vald tidpunkt",
+                        showarrow=False,
+                        xanchor="left",
+                        yanchor="bottom",
+                        font=dict(color=ILOVE_RED, size=11)
+                    )
                     apply_brand_layout(fig_pen)
                     st.plotly_chart(fig_pen, use_container_width=True)
                 else:
