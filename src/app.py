@@ -1502,7 +1502,7 @@ else:
                 top_cities,
                 x='Stad',
                 y='Antal Ägare',
-                title="Antal Ägare per Stad (Topp 15)",
+                title="Antal Ägare per Postort (Topp 15)",
                 text_auto=True,
                 color_discrete_sequence=[ILOVE_BLUE]
             )
