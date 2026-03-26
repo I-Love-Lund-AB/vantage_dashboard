@@ -1,4 +1,6 @@
 import os
+import base64
+import requests
 import pandas as pd
 from datetime import datetime
 
@@ -83,3 +85,62 @@ class DataManager:
         if os.path.exists(self.data_file):
             return datetime.fromtimestamp(os.path.getmtime(self.data_file))
         return None
+
+    def push_csv_to_github(self) -> str:
+        """
+        Pushar den lokala CSV-filen till GitHub via Contents API.
+
+        Kräver att GITHUB_TOKEN, GITHUB_REPO och GITHUB_CSV_PATH
+        finns i miljövariabler eller Streamlit secrets.
+
+        Returns:
+            Commit-URL vid lyckat resultat.
+        Raises:
+            Exception vid misslyckande.
+        """
+        from auth import _get_secret
+
+        token = _get_secret("GITHUB_TOKEN")
+        repo = _get_secret("GITHUB_REPO")
+        csv_path_in_repo = _get_secret("GITHUB_CSV_PATH", "data/shareholders_history.csv")
+
+        if not token or not repo:
+            raise ValueError(
+                "GITHUB_TOKEN och GITHUB_REPO måste vara satta "
+                "(i .env lokalt eller Streamlit Cloud Secrets)."
+            )
+
+        api_url = f"https://api.github.com/repos/{repo}/contents/{csv_path_in_repo}"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+
+        existing_sha = None
+        resp = requests.get(api_url, headers=headers, timeout=30)
+        if resp.status_code == 200:
+            existing_sha = resp.json().get("sha")
+
+        if not os.path.exists(self.data_file):
+            raise FileNotFoundError(f"Lokal CSV saknas: {self.data_file}")
+
+        with open(self.data_file, "rb") as f:
+            content_b64 = base64.b64encode(f.read()).decode("utf-8")
+
+        today = datetime.now().strftime("%Y-%m")
+        payload = {
+            "message": f"Data uppdaterad {today}",
+            "content": content_b64,
+        }
+        if existing_sha:
+            payload["sha"] = existing_sha
+
+        resp = requests.put(api_url, headers=headers, json=payload, timeout=60)
+
+        if resp.status_code in (200, 201):
+            return resp.json().get("commit", {}).get("html_url", "OK")
+
+        raise Exception(
+            f"GitHub API fel {resp.status_code}: {resp.text[:300]}"
+        )
