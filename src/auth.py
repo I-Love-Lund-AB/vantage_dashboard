@@ -6,118 +6,107 @@ from dotenv import load_dotenv
 from cryptography.hazmat.primitives.serialization import pkcs12
 from cryptography.hazmat.primitives import serialization, hashes
 
-# Ladda miljövariabler från .env filen
 load_dotenv()
+
+
+def _get_secret(key: str, default=None):
+    """Hämtar värde från miljövariabel, med fallback till st.secrets (Streamlit Cloud)."""
+    value = os.getenv(key)
+    if value:
+        return value
+    try:
+        import streamlit as st
+        return st.secrets.get(key, default)
+    except Exception:
+        return default
+
 
 class AuthHandler:
     """
     Hanterar autentisering mot Azure Active Directory (AAD) för att erhålla en JWT access token.
     Använder 'Confidential Client' flödet med certifikat.
+
+    Credentials läses från miljövariabler (.env lokalt) med automatisk fallback
+    till Streamlit Cloud Secrets när env saknas.
     """
     def __init__(self):
-        # Hämtar konfiguration från miljövariabler
-        self.client_id = os.getenv("CLIENT_ID")
-        self.tenant_id = os.getenv("TENANT_ID")
-        self.application_id = os.getenv("APPLICATION_ID")
-        self.certificate_path = os.getenv("CERTIFICATE_PATH")
-        self.certificate_password = os.getenv("CERTIFICATE_PASSWORD")
-        
-        # Azure AD endpoint för token-utgivning
+        self.client_id = _get_secret("CLIENT_ID")
+        self.tenant_id = _get_secret("TENANT_ID")
+        self.application_id = _get_secret("APPLICATION_ID")
+        self.certificate_path = _get_secret("CERTIFICATE_PATH")
+        self.certificate_password = _get_secret("CERTIFICATE_PASSWORD")
+
         self.authority = f"https://login.microsoftonline.com/{self.tenant_id}"
-        
-        # Definierat Scope enligt Euroclear Vantage dokumentationen
-        # .default används för att begära alla behörigheter applikationen är konfigurerad för
         self.scope = [f"https://euroclearb2c01.onmicrosoft.com/{self.application_id}/.default"]
-        
+
         self.app = None
 
     def _load_certificate_key(self):
         """
-        Laddar privat nyckel och beräknar thumbprint från certifikatfilen.
-        
-        Stödjer .pfx (PKCS#12) och .pem filer.
-        
-        Returns:
-            tuple: (private_key_pem_string, thumbprint_hex_string)
+        Laddar privat nyckel och beräknar thumbprint.
+
+        Försöker i ordning:
+        1. Läsa .pfx/.pem från disk (CERTIFICATE_PATH – fungerar lokalt)
+        2. Avkoda CERTIFICATE_BASE64 från Streamlit secrets (fungerar på Cloud)
         """
-        if not self.certificate_path or not os.path.exists(self.certificate_path):
-            raise FileNotFoundError(f"Certifikat hittades ej på sökväg: {self.certificate_path}")
+        pfx_data = None
 
-        file_ext = os.path.splitext(self.certificate_path)[1].lower()
+        # 1) Fil på disk
+        if self.certificate_path and os.path.exists(self.certificate_path):
+            file_ext = os.path.splitext(self.certificate_path)[1].lower()
+            if file_ext in ['.pem', '.key']:
+                with open(self.certificate_path, 'r') as f:
+                    return f.read(), None
+            with open(self.certificate_path, "rb") as f:
+                pfx_data = f.read()
 
-        if file_ext == '.pfx':
-            try:
-                with open(self.certificate_path, "rb") as f:
-                    pfx_data = f.read()
-                
-                # Om lösenord finns, koda det till bytes
-                password = self.certificate_password.encode() if self.certificate_password else None
-                
-                # Extrahera nyckel och certifikat från PFX-filen
-                private_key, certificate, additional_certificates = pkcs12.load_key_and_certificates(
-                    pfx_data, 
-                    password
+        # 2) Base64-secret (Streamlit Cloud)
+        if pfx_data is None:
+            cert_b64 = _get_secret("CERTIFICATE_BASE64")
+            if not cert_b64:
+                raise FileNotFoundError(
+                    "Inget certifikat tillgängligt: varken CERTIFICATE_PATH på disk "
+                    "eller CERTIFICATE_BASE64 i Streamlit secrets hittades."
                 )
-                
-                if private_key is None:
-                    raise ValueError("PFX-filen innehåller ingen privat nyckel.")
+            pfx_data = base64.b64decode(cert_b64)
 
-                # Serialisera nyckeln till PEM-format (krävs av MSAL Python)
-                key_pem = private_key.private_bytes(
-                    encoding=serialization.Encoding.PEM,
-                    format=serialization.PrivateFormat.TraditionalOpenSSL,
-                    encryption_algorithm=serialization.NoEncryption()
-                )
-                
-                # Beräkna SHA-1 Thumbprint (krävs ofta av Azure AD för att identifiera certifikatet)
-                if certificate:
-                    thumbprint = certificate.fingerprint(hashes.SHA1()).hex()
-                else:
-                    thumbprint = None
+        password = self.certificate_password.encode() if self.certificate_password else None
 
-                return key_pem.decode('utf-8'), thumbprint
-                
-            except Exception as e:
-                raise Exception(f"Fel vid inläsning av PFX-certifikat: {str(e)}")
-        
-        elif file_ext in ['.pem', '.key']:
-            # Fallback för rena PEM-filer - thumbprint kan behöva hanteras manuellt om det krävs
-            with open(self.certificate_path, 'r') as f:
-                return f.read(), None
-        
-        else:
-            raise ValueError(f"Certifikatsformat stöds ej: {file_ext}. Använd .pfx eller .pem")
+        private_key, certificate, _ = pkcs12.load_key_and_certificates(pfx_data, password)
+
+        if private_key is None:
+            raise ValueError("Certifikatet innehåller ingen privat nyckel.")
+
+        key_pem = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption()
+        )
+
+        thumbprint = certificate.fingerprint(hashes.SHA1()).hex() if certificate else None
+        return key_pem.decode('utf-8'), thumbprint
 
     def get_access_token(self):
-        """
-        Hämtar en giltig access token från Azure AD.
-        Hanterar caching automatiskt via MSAL.
-        """
+        """Hämtar en giltig access token från Azure AD. Cachas automatiskt via MSAL."""
         if not self.app:
-            # Initiera MSAL applikationen vid första anropet
             private_key, thumbprint = self._load_certificate_key()
-            
+
             client_cred = {"private_key": private_key}
             if thumbprint:
                 client_cred["thumbprint"] = thumbprint
 
-            # Skapa ConfidentialClientApplication instance
             self.app = msal.ConfidentialClientApplication(
                 self.client_id,
                 authority=self.authority,
                 client_credential=client_cred
             )
 
-        # 1. Försök hämta token från lokal cache (tyst anrop)
         result = self.app.acquire_token_silent(self.scope, account=None)
-
         if not result:
-            # 2. Om ingen giltig token finns i cache, gör ett nytt anrop mot Azure AD
             result = self.app.acquire_token_for_client(scopes=self.scope)
 
         if "access_token" in result:
             return result["access_token"]
-        else:
-            # Fånga och kasta vidare eventuella fel från MSAL
-            error_description = result.get("error_description", result.get("error", "Okänt fel"))
-            raise Exception(f"Kunde ej hämta access token: {error_description}")
+
+        error_description = result.get("error_description", result.get("error", "Okänt fel"))
+        raise Exception(f"Kunde ej hämta access token: {error_description}")
