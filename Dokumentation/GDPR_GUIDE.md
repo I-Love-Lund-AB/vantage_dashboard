@@ -24,8 +24,8 @@ Följande fält i datan innehåller personuppgifter:
 - Känsliga fält döljs i standardvisningen
 
 ### ✅ Lösenordsskydd för Avanonymisering
-- **Standardlösenord:** `admin123` (⚠️ ÄNDRA DETTA I PRODUKTION!)
-- **Konfigurera via miljövariabel:** Sätt `DATA_ACCESS_PASSWORD` i `.env`-filen
+- **Konfigurera via Streamlit Secrets:** Sätt `DATA_ACCESS_PASSWORD` i Streamlit Cloud → Settings → Secrets
+- **Lokalt:** Sätt `DATA_ACCESS_PASSWORD` i `.env`-filen
 - Lösenordet hashas med SHA-256 för säker lagring
 - Säker jämförelse med `hmac.compare_digest()` för att förhindra timing attacks
 - Sessionen sparas tills användaren loggar ut eller laddar om sidan
@@ -99,11 +99,14 @@ import streamlit_authenticator as stauth
 
 ### 6. **Informationssäkerhet** 🛡️
 - **Nuvarande status:** Dashboard körs på Streamlit Community Cloud
+- **App-URL:** https://ilovelund-aktie.streamlit.app/
+- **GitHub-repo:** https://github.com/I-Love-Lund-AB/vantage_dashboard
 - **Implementerat:**
   - ✅ HTTPS används automatiskt (Streamlit Cloud)
   - ✅ Servern hanteras och uppdateras av Streamlit
-  - ✅ Environment variables via Streamlit Secrets
-  - ✅ Lösenordsskydd för känslig data (Cap Table, rådata)
+  - ✅ API-credentials och certifikat lagras i Streamlit Secrets (ej i kod)
+  - ✅ Lösenordsskydd för känslig data (Cap Table, Komplett Ägarlista)
+  - ✅ Anonymisering av personuppgifter som standard
 - **Rekommendation:**
   - Granska regelbundet vem som har access till appen
   - Uppdatera lösenord regelbundet
@@ -146,7 +149,7 @@ import streamlit_authenticator as stauth
 - [ ] Skapa register över personuppgiftsbehandlingar
 - [ ] Dokumentera syfte och laglig grund
 - [ ] Implementera automatisk radering av gamla data
-- [x] ~~Säkerställ säker datalagring~~ → Streamlit Cloud + GitHub Private repo
+- [x] ~~Säkerställ säker datalagring~~ → Streamlit Cloud + GitHub (I-Love-Lund-AB org)
 - [ ] Informera användare om databehandling
 - [ ] Implementera funktioner för användarrättigheter
 - [ ] Genomför säkerhetsaudit
@@ -166,6 +169,6 @@ Vid frågor om GDPR-compliance, kontakta:
 
 ---
 
-**Senast uppdaterad:** 2026-02-10
-**Version:** 1.1 (Uppdaterad för Streamlit Cloud)
+**Senast uppdaterad:** 2026-03-26
+**Version:** 1.2 (Uppdaterad med ny organisation och Streamlit-URL)
 
