@@ -4,7 +4,7 @@ En Streamlit-dashboard för att analysera aktieägardata för I Love Lund AB.
 
 ## 🌐 Live Dashboard
 
-**URL:** https://ilovelund-dashboard.streamlit.app/
+**URL:** https://ilovelund-aktie.streamlit.app/
 
 Dashboarden körs på Streamlit Community Cloud och är tillgänglig för alla med länken.
 
@@ -30,23 +30,20 @@ Dashboarden körs på Streamlit Community Cloud och är tillgänglig för alla m
 │                 │      │                 │      │                 │
 │ - Källkod       │      │ - Kör appen     │      │ - Ser dashboard │
 │ - Data (CSV)    │      │ - Auto-deploy   │      │ - Genererar     │
-│                 │      │                 │      │   rapporter     │
-└─────────────────┘      └─────────────────┘      └─────────────────┘
-        ▲
-        │
-┌───────┴─────────┐
-│   Lokal dator   │
-│                 │
-│ - Hämta ny data │
-│ - Göra ändringar│
-│ - Push till Git │
-└─────────────────┘
+│                 │      │ - Hämtar data   │      │   rapporter     │
+└─────────────────┘      │   via API       │      └─────────────────┘
+        ▲                └─────────────────┘
+        │                        │
+        │                        │ Sparar CSV via
+        └────────────────────────┘ GitHub API
 ```
 
 ### Så fungerar uppdateringar:
-1. **Data hämtas lokalt** via Euroclear API (kräver certifikat)
-2. **Ändringar pushas** till GitHub via GitHub Desktop
-3. **Streamlit Cloud uppdateras automatiskt** inom ~1 minut
+1. **Data hämtas direkt i dashboarden** via Euroclear API (knappen "Hämta Data" i sidomenyn)
+2. **CSV-filen sparas automatiskt** till GitHub via GitHub Contents API
+3. **Streamlit Cloud uppdateras automatiskt** med den nya datan
+
+Kodändringar görs lokalt och pushas till GitHub — Streamlit Cloud hämtar dem automatiskt.
 
 ---
 
@@ -57,8 +54,9 @@ vantage_dashboard/
 ├── src/                      # 🔧 KÄLLKOD (ändra här!)
 │   ├── app.py               # Huvudapplikation
 │   ├── api.py               # API-klient för Euroclear
+│   ├── auth.py              # Autentisering mot Azure AD
 │   ├── config.py            # Inställningar (ISIN, färger)
-│   ├── data_manager.py      # Datahantering
+│   ├── data_manager.py      # Datahantering + GitHub-push
 │   └── tabs/                # Flikarna i dashboarden
 │
 ├── data/                     # 📊 DATA
@@ -99,10 +97,10 @@ streamlit run src/app.py
 ```
 
 ### Hämta ny data
-1. Kör dashboarden lokalt
-2. Välj datum i sidomenyn
+1. Öppna dashboarden (lokalt eller på https://ilovelund-aktie.streamlit.app/)
+2. Välj datum i sidomenyn (sista helgfria vardagen föregående månad)
 3. Klicka "Hämta Data"
-4. Committa och pusha via GitHub Desktop
+4. Data sparas automatiskt till GitHub
 
 ---
 
@@ -112,27 +110,50 @@ streamlit run src/app.py
 Konfigureras på https://share.streamlit.io → App → Settings → Secrets:
 
 ```toml
+# === GDPR / Dashboard-lösenord ===
 DATA_ACCESS_PASSWORD = "ditt-lösenord"
+
+# === Euroclear Vantage API ===
+VANTAGE_API_URL = "https://api.euroclear.com/vantage/v1"
+CLIENT_ID = "din-client-id"
+TENANT_ID = "din-tenant-id"
+APPLICATION_ID = "din-application-id"
+CERTIFICATE_PASSWORD = "certifikat-lösenord"
+CERTIFICATE_BASE64 = "base64-kodad-pfx-sträng"
+
+# === GitHub (för att spara hämtad data permanent) ===
+GITHUB_TOKEN = "ghp_din-token"
+GITHUB_REPO = "I-Love-Lund-AB/vantage_dashboard"
+GITHUB_CSV_PATH = "data/shareholders_history.csv"
 ```
 
 ### Lokal utveckling
-Skapa `.streamlit/secrets.toml` (ignoreras av Git):
+Skapa `.env` i projektmappen (ignoreras av Git):
 
-```toml
-DATA_ACCESS_PASSWORD = "ditt-lösenord"
+```
+DATA_ACCESS_PASSWORD=xxx
+VANTAGE_API_URL=https://api.euroclear.com/vantage/v1
+CLIENT_ID=din-client-id
+TENANT_ID=din-tenant-id
+APPLICATION_ID=din-application-id
+CERTIFICATE_PATH=certs/client_cert.pfx
+CERTIFICATE_PASSWORD=certifikat-lösenord
 ```
 
 ---
 
 ## 🔄 Uppdatera dashboarden
 
-### Via GitHub Desktop (rekommenderat)
-1. Gör ändringar i filerna
-2. Öppna GitHub Desktop
-3. Skriv en sammanfattning av ändringen
-4. Klicka "Commit to main"
-5. Klicka "Push origin"
-6. ✅ Streamlit Cloud uppdateras automatiskt
+### Hämta ny månadsdata
+1. Gå till https://ilovelund-aktie.streamlit.app/
+2. Klicka "Hämta Data" i sidomenyn
+3. Klart — datan sparas automatiskt till GitHub
+
+### Göra kodändringar
+1. Gör ändringar i filerna under `src/`
+2. Testa lokalt: `streamlit run src/app.py`
+3. Committa och pusha via GitHub Desktop
+4. Streamlit Cloud uppdateras automatiskt
 
 ### Via Cursor AI
 1. Öppna projektet i Cursor
