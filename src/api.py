@@ -1,6 +1,6 @@
 import os
 import requests
-from auth import AuthHandler
+from auth import AuthHandler, _get_secret
 
 class VantageClient:
     """
@@ -8,12 +8,13 @@ class VantageClient:
     Hanterar autentisering och specifika API-anrop.
     """
     def __init__(self):
-        # Initiera autentiseringshanteraren
         self.auth = AuthHandler()
-        # Hämta bas-URL från miljövariabler
-        self.base_url = os.getenv("VANTAGE_API_URL")
+        self.base_url = _get_secret("VANTAGE_API_URL")
         if not self.base_url:
-            raise ValueError("VANTAGE_API_URL är ej satt i miljövariabler (.env).")
+            raise ValueError(
+                "VANTAGE_API_URL saknas. Sätt den i .env (lokalt) "
+                "eller i Streamlit Cloud Secrets."
+            )
 
     def _get_headers(self):
         """
