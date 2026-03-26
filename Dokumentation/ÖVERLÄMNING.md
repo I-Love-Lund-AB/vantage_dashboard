@@ -94,18 +94,59 @@ vantage_dashboard/
 
 ### Streamlit Cloud Secrets
 - **Plats:** Streamlit Cloud → App → Settings → Secrets
-- **Innehåll:**
+- **Format:** TOML
+- **Fullständig konfiguration:**
   ```toml
-  DATA_ACCESS_PASSWORD = "xxx"
-  ```
-- **Syfte:** Lösenord för att se känslig persondata i dashboarden
+  # === GDPR / Dashboard-lösenord ===
+  DATA_ACCESS_PASSWORD = "ditt-lösenord-här"
 
-### Lokala miljövariabler (valfritt)
+  # === Euroclear Vantage API ===
+  VANTAGE_API_URL = "https://api.euroclear.com/vantage/v1"
+  CLIENT_ID = "din-client-id"
+  TENANT_ID = "din-tenant-id"
+  APPLICATION_ID = "din-application-id"
+  CERTIFICATE_PASSWORD = "certifikat-lösenord"
+
+  # Certifikatet som base64 (genereras en gång, se instruktion nedan)
+  CERTIFICATE_BASE64 = "MIIJ...lång-sträng..."
+
+  # === GitHub (för att spara hämtad data permanent) ===
+  GITHUB_TOKEN = "ghp_din-token"
+  GITHUB_REPO = "organisation/repo-namn"
+  GITHUB_CSV_PATH = "data/shareholders_history.csv"
+  ```
+
+#### Engångsinställning: Generera CERTIFICATE_BASE64
+Kör detta på din lokala dator (i projektmappen):
+```bash
+python -c "import base64; print(base64.b64encode(open('certs/cert.pfx','rb').read()).decode())"
+```
+Kopiera hela den utskrivna strängen och klistra in som värde för `CERTIFICATE_BASE64` i Streamlit secrets.
+
+#### Engångsinställning: Skapa GITHUB_TOKEN
+1. Gå till https://github.com/settings/tokens
+2. Klicka "Generate new token (classic)"
+3. Ge den ett namn (t.ex. "Vantage Dashboard")
+4. Välj scope: `repo` (full kontroll av repositories)
+5. Klicka "Generate token" och kopiera värdet
+6. Klistra in som `GITHUB_TOKEN` i Streamlit secrets
+
+#### Engångsinställning: GITHUB_REPO
+Sätt `GITHUB_REPO` till `ägare/repo-namn` (t.ex. `ilovelund/vantage_dashboard`).
+
+### Lokala miljövariabler (för utveckling)
 - **Fil:** `.env` i projektmappen (skapas manuellt, finns ej på GitHub)
 - **Innehåll:**
   ```
   DATA_ACCESS_PASSWORD=xxx
+  VANTAGE_API_URL=https://api.euroclear.com/vantage/v1
+  CLIENT_ID=din-client-id
+  TENANT_ID=din-tenant-id
+  APPLICATION_ID=din-application-id
+  CERTIFICATE_PATH=certs/cert.pfx
+  CERTIFICATE_PASSWORD=certifikat-lösenord
   ```
+- **OBS:** Lokalt behövs varken `CERTIFICATE_BASE64`, `GITHUB_TOKEN` eller `GITHUB_REPO` — de används bara på Streamlit Cloud.
 
 ---
 
