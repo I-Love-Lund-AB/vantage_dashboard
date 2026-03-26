@@ -68,6 +68,10 @@ class AuthHandler:
                     "Inget certifikat tillgängligt: varken CERTIFICATE_PATH på disk "
                     "eller CERTIFICATE_BASE64 i Streamlit secrets hittades."
                 )
+            cert_b64 = cert_b64.strip().replace("\n", "").replace("\r", "").replace(" ", "")
+            missing_pad = len(cert_b64) % 4
+            if missing_pad:
+                cert_b64 += "=" * (4 - missing_pad)
             pfx_data = base64.b64decode(cert_b64)
 
         password = self.certificate_password.encode() if self.certificate_password else None
