@@ -13,9 +13,27 @@ import gender_guesser.detector as gender
 
 import sys
 import os
+from pathlib import Path
 
 # Lägg till nuvarande katalog till sys.path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(_PROJECT_ROOT / ".env")
+
+
+def _apply_streamlit_secrets_to_environ() -> None:
+    """Streamlit Cloud Secrets → os.environ (överstyr inte befintliga värden)."""
+    try:
+        for key in st.secrets:
+            value = st.secrets[key]
+            if isinstance(value, str) and value.strip():
+                os.environ.setdefault(key, value.strip())
+    except Exception:
+        pass
+
+
+_apply_streamlit_secrets_to_environ()
 
 # Importera våra anpassade moduler
 from api import VantageClient
@@ -184,22 +202,23 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Initialisering ---
-_client_init_error: str | None = None
-
 @st.cache_resource
-def _get_manager():
-    return DataManager()
-
-def _init_client():
-    global _client_init_error
+def get_components():
+    client = None
+    init_error = None
     try:
-        return VantageClient()
+        client = VantageClient()
     except Exception as e:
-        _client_init_error = str(e)
-        return None
+        init_error = str(e)
+    manager = DataManager()
+    return client, manager, init_error
 
-manager = _get_manager()
-client = _init_client()
+client, manager, _api_init_error = get_components()
+if _api_init_error:
+    st.error(
+        f"API-klienten kunde inte startas: {_api_init_error} "
+        "Kontrollera CLIENT_ID, certifikat och övriga credentials i Streamlit Secrets (eller i .env lokalt)."
+    )
 
 # --- Lösenordshantering för avanonymisering ---
 def verify_password(password: str, stored_hash: str) -> bool:
@@ -254,16 +273,16 @@ def apply_brand_layout(fig):
     return fig
 
 # --- HJÄLPFUNKTIONER ---
-def get_last_business_day_prev_month():
+def get_last_month_end_date():
     """
-    Räknar ut sista helgfria vardagen i föregående månad.
-    Backar från sista kalenderdagen tills en måndag–fredag hittas.
+    Räknar ut sista dagen i föregående månad.
+    Detta är oftast datumet då ny data finns tillgänglig.
     """
     today = datetime.today()
+    # Första dagen i denna månad
     first_of_this_month = today.replace(day=1)
+    # Sista dagen i förra månaden är dagen innan första dagen i denna månad
     last_month_end = first_of_this_month - timedelta(days=1)
-    while last_month_end.weekday() >= 5:
-        last_month_end -= timedelta(days=1)
     return last_month_end
 
 
@@ -1044,98 +1063,87 @@ def enrich_owner_data(df: pd.DataFrame, reference_date: datetime = None) -> pd.D
 st.sidebar.title("KONFIGURATION")
 
 # HÅRDKODAT STANDARD-DATUM: Sista dagen i förra månaden
-default_date = get_last_business_day_prev_month()
+default_date = get_last_month_end_date()
 
 def render_fetch_data_sidebar():
     """Renderar sektionen för att hämta ny data från API."""
     st.sidebar.markdown("---")
     st.sidebar.header("📥 Hämta Ny Data")
-
-    if client is None:
-        st.sidebar.warning(
-            "⚠️ API-klienten kunde inte startas. "
-            "Kontrollera att alla credentials finns i Streamlit Secrets "
-            "(eller i .env lokalt)."
-        )
-        if _client_init_error:
-            st.sidebar.caption(f"Orsak: {_client_init_error}")
-        return
-
-    st.sidebar.caption("Välj sista helgfria vardagen i föregående månad för att hämta nya data.")
     st.sidebar.write(f"**Bolag:** {BOLAGSNAMN}")
 
     fetch_date = st.sidebar.date_input(
         "Datum",
         value=default_date,
-        help="Välj sista helgfria vardagen i föregående månad."
+        help="Välj sista dagen i månaden du vill hämta data för."
     )
 
     if st.sidebar.button("Hämta Data"):
-        with st.spinner(f"Hämtar data för {fetch_date}..."):
-            try:
-                date_str = fetch_date.strftime("%Y-%m-%d")
-                all_records = []
-                
-                for share_class, isin in [('A', ISIN_A), ('B', ISIN_B)]:
-                    response_data = client.get_complete_register(isin, date_str)
+        if client:
+            with st.spinner(f"Hämtar data för {fetch_date}..."):
+                try:
+                    date_str = fetch_date.strftime("%Y-%m-%d")
+                    all_records = []
                     
-                    if response_data and 'holdings' in response_data:
-                        holdings_list = response_data['holdings']
+                    # Hämta data för BÅDE A- och B-aktier
+                    for share_class, isin in [('A', ISIN_A), ('B', ISIN_B)]:
+                        response_data = client.get_complete_register(isin, date_str)
                         
-                        metadata = {
-                            'isin': response_data.get('isin', isin),
-                            'shareClass': share_class,
-                            'issuerName': response_data.get('issuerName', 'Unknown'),
-                            'holdingDate': response_data.get('holdingDate', date_str),
-                            'issuedQuantity': response_data.get('issuedQuantity', 0),
-                            'votingRight': response_data.get('votingRight', 1)
-                        }
-                        
-                        for h in holdings_list:
-                            record = h.copy()
-                            record.update(metadata)
-                            record['date'] = metadata['holdingDate'][:10]
-                            all_records.append(record)
-                        
-                        st.sidebar.info(f"Hämtade {len(holdings_list)} {share_class}-aktieägare")
-                
-                if all_records:
-                    manager.save_data(all_records)
-                    st.sidebar.success(f"✅ Hämtade totalt {len(all_records)} poster (A + B aktier)!")
-
-                    try:
-                        commit_url = manager.push_csv_to_github()
-                        st.sidebar.success(f"✅ Data sparad permanent till GitHub.")
-                    except Exception as push_err:
-                        st.sidebar.warning(
-                            f"⚠️ Data sparad lokalt men kunde inte pushas till GitHub: {push_err}"
-                        )
-
-                    st.rerun()
-                else:
-                    st.sidebar.warning(f"⚠️ Ingen data hittades för {date_str}. (API svarade 204 No Content).")
-                    st.sidebar.info("💡 **Tips:** API:et returnerar 204 när data saknas för detta datum. Detta kan bero på:")
-                    st.sidebar.markdown("""
-                    - Data finns inte för detta specifika datum
-                    - Data är inte tillgänglig än (för framtida datum)
-                    - För äldre datum: Data kan finnas men kräver specifikt datumformat eller annan endpoint
-                    - Försök med sista bankdagen i månaden istället för sista kalenderdagen
-                    """)
+                        if response_data and 'holdings' in response_data:
+                            holdings_list = response_data['holdings']
+                            
+                            # Metadata för varje rad
+                            metadata = {
+                                'isin': response_data.get('isin', isin),
+                                'shareClass': share_class,
+                                'issuerName': response_data.get('issuerName', 'Unknown'),
+                                'holdingDate': response_data.get('holdingDate', date_str),
+                                'issuedQuantity': response_data.get('issuedQuantity', 0),
+                                'votingRight': response_data.get('votingRight', 1)
+                            }
+                            
+                            # Platta ut
+                            for h in holdings_list:
+                                record = h.copy()
+                                record.update(metadata)
+                                record['date'] = metadata['holdingDate'][:10]
+                                all_records.append(record)
+                            
+                            st.sidebar.info(f"Hämtade {len(holdings_list)} {share_class}-aktieägare")
                     
-            except Exception as e:
-                error_msg = str(e)
-                st.sidebar.error(f"❌ API Fel: {error_msg}")
-                
-                if "400" in error_msg or "Bad Request" in error_msg:
-                    st.sidebar.info("💡 **400 Bad Request:** Kontrollera att datumet är i formatet YYYY-MM-DD och att ISIN är korrekt.")
-                elif "401" in error_msg or "Unauthorized" in error_msg:
-                    st.sidebar.info("💡 **401 Unauthorized:** Autentisering misslyckades. Kontrollera certifikat och credentials.")
-                elif "403" in error_msg or "Forbidden" in error_msg:
-                    st.sidebar.info("💡 **403 Forbidden:** Du har inte behörighet att hämta data för detta ISIN eller datum.")
-                elif "404" in error_msg:
-                    st.sidebar.info("💡 **404 Not Found:** Endpoint eller resurs hittades inte.")
-                elif "500" in error_msg:
-                    st.sidebar.info("💡 **500 Server Error:** Serverfel hos Euroclear. Försök igen senare.")
+                    if all_records:
+                        # Spara
+                        manager.save_data(all_records)
+                        st.sidebar.success(f"✅ Hämtade totalt {len(all_records)} poster (A + B aktier)!")
+                    else:
+                        st.sidebar.warning(f"⚠️ Ingen data hittades för {date_str}. (API svarade 204 No Content).")
+                        st.sidebar.info("💡 **Tips:** API:et returnerar 204 när data saknas för detta datum. Detta kan bero på:")
+                        st.sidebar.markdown("""
+                        - Data finns inte för detta specifika datum
+                        - Data är inte tillgänglig än (för framtida datum)
+                        - För äldre datum: Data kan finnas men kräver specifikt datumformat eller annan endpoint
+                        - Försök med sista bankdagen i månaden istället för sista kalenderdagen
+                        """)
+                        
+                except Exception as e:
+                    error_msg = str(e)
+                    st.sidebar.error(f"❌ API Fel: {error_msg}")
+                    
+                    # Ge mer specifik information om felet
+                    if "400" in error_msg or "Bad Request" in error_msg:
+                        st.sidebar.info("💡 **400 Bad Request:** Kontrollera att datumet är i formatet YYYY-MM-DD och att ISIN är korrekt.")
+                    elif "401" in error_msg or "Unauthorized" in error_msg:
+                        st.sidebar.info("💡 **401 Unauthorized:** Autentisering misslyckades. Kontrollera certifikat och credentials.")
+                    elif "403" in error_msg or "Forbidden" in error_msg:
+                        st.sidebar.info("💡 **403 Forbidden:** Du har inte behörighet att hämta data för detta ISIN eller datum.")
+                    elif "404" in error_msg:
+                        st.sidebar.info("💡 **404 Not Found:** Endpoint eller resurs hittades inte.")
+                    elif "500" in error_msg:
+                        st.sidebar.info("💡 **500 Server Error:** Serverfel hos Euroclear. Försök igen senare.")
+        else:
+            st.sidebar.error(
+                "API-klienten är inte tillgänglig. "
+                "Kontrollera credentials i Streamlit Secrets (eller .env lokalt)."
+            )
 
 # Initiera lund_inhabitants i session state om det inte finns
 if 'lund_inhabitants' not in st.session_state:
@@ -1523,7 +1531,7 @@ else:
                 top_cities,
                 x='Stad',
                 y='Antal Ägare',
-                title="Antal Ägare per Postort (Topp 15)",
+                title="Antal Ägare per Stad (Topp 15)",
                 text_auto=True,
                 color_discrete_sequence=[ILOVE_BLUE]
             )

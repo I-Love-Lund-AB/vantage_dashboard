@@ -1,6 +1,46 @@
+import json
 import os
+import time
+from pathlib import Path
+
 import requests
-from auth import AuthHandler, _get_secret
+from dotenv import load_dotenv
+
+from auth import AuthHandler
+
+# Euroclear Vantage API (offentlig bas-URL; kan överstyras med VANTAGE_API_URL)
+DEFAULT_VANTAGE_API_URL = "https://vantage-api.euroclear.com/anz/api/external"
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(_PROJECT_ROOT / ".env")
+
+_DEBUG_LOG_PATH = _PROJECT_ROOT / ".cursor" / "debug-797cc0.log"
+
+
+def _debug_log(hypothesis_id: str, location: str, message: str, data: dict) -> None:
+    # #region agent log
+    try:
+        payload = {
+            "sessionId": "797cc0",
+            "hypothesisId": hypothesis_id,
+            "location": location,
+            "message": message,
+            "data": data,
+            "timestamp": int(time.time() * 1000),
+        }
+        _DEBUG_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(_DEBUG_LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(payload) + "\n")
+    except Exception:
+        pass
+    # #endregion
+
+
+def resolve_vantage_api_url() -> str:
+    """Bas-URL från miljö/secrets, annars standard i api.py."""
+    url = (os.getenv("VANTAGE_API_URL") or "").strip()
+    return url or DEFAULT_VANTAGE_API_URL
+
 
 class VantageClient:
     """
@@ -8,13 +48,29 @@ class VantageClient:
     Hanterar autentisering och specifika API-anrop.
     """
     def __init__(self):
+        # #region agent log
+        _debug_log(
+            "A",
+            "api.py:VantageClient.__init__",
+            "Resolving VANTAGE_API_URL",
+            {
+                "env_set": bool((os.getenv("VANTAGE_API_URL") or "").strip()),
+                "cwd": os.getcwd(),
+                "project_root": str(_PROJECT_ROOT),
+            },
+        )
+        # #endregion
+        self.base_url = resolve_vantage_api_url()
+        # #region agent log
+        _debug_log(
+            "A",
+            "api.py:VantageClient.__init__",
+            "Resolved base_url",
+            {"base_url_host": self.base_url.split("/")[2] if self.base_url else None},
+        )
+        # #endregion
+        # Initiera autentiseringshanteraren
         self.auth = AuthHandler()
-        self.base_url = _get_secret("VANTAGE_API_URL")
-        if not self.base_url:
-            raise ValueError(
-                "VANTAGE_API_URL saknas. Sätt den i .env (lokalt) "
-                "eller i Streamlit Cloud Secrets."
-            )
 
     def _get_headers(self):
         """
