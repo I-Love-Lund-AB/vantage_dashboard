@@ -7,9 +7,9 @@ import requests
 from dotenv import load_dotenv
 
 from auth import AuthHandler
+from secrets_util import DEFAULT_VANTAGE_API_URL, ensure_vantage_api_url
 
 # Euroclear Vantage API (offentlig bas-URL; kan överstyras med VANTAGE_API_URL)
-DEFAULT_VANTAGE_API_URL = "https://vantage-api.euroclear.com/anz/api/external"
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(_PROJECT_ROOT / ".env")
@@ -38,8 +38,7 @@ def _debug_log(hypothesis_id: str, location: str, message: str, data: dict) -> N
 
 def resolve_vantage_api_url() -> str:
     """Bas-URL från miljö/secrets, annars standard i api.py."""
-    url = (os.getenv("VANTAGE_API_URL") or "").strip()
-    return url or DEFAULT_VANTAGE_API_URL
+    return ensure_vantage_api_url()
 
 
 class VantageClient:

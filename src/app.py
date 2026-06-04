@@ -18,22 +18,16 @@ from pathlib import Path
 # Lägg till nuvarande katalog till sys.path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# Ökas vid deploy så Streamlit Cloud laddar om cachad klient
+APP_BUILD_ID = "2026-06-04-secrets-fix-v2"
+
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(_PROJECT_ROOT / ".env")
 
+from secrets_util import apply_streamlit_secrets_to_environ, ensure_vantage_api_url
 
-def _apply_streamlit_secrets_to_environ() -> None:
-    """Streamlit Cloud Secrets → os.environ (överstyr inte befintliga värden)."""
-    try:
-        for key in st.secrets:
-            value = st.secrets[key]
-            if isinstance(value, str) and value.strip():
-                os.environ.setdefault(key, value.strip())
-    except Exception:
-        pass
-
-
-_apply_streamlit_secrets_to_environ()
+apply_streamlit_secrets_to_environ()
+ensure_vantage_api_url()
 
 # Importera våra anpassade moduler
 from api import VantageClient
@@ -203,7 +197,7 @@ st.markdown("""
 
 # --- Initialisering ---
 @st.cache_resource
-def get_components():
+def get_components(_build_id=APP_BUILD_ID):
     client = None
     init_error = None
     try:
@@ -1061,6 +1055,7 @@ def enrich_owner_data(df: pd.DataFrame, reference_date: datetime = None) -> pd.D
 
 # --- SIDEBAR (Konfiguration) ---
 st.sidebar.title("KONFIGURATION")
+st.sidebar.caption(f"Build: {APP_BUILD_ID}")
 
 # HÅRDKODAT STANDARD-DATUM: Sista dagen i förra månaden
 default_date = get_last_month_end_date()
