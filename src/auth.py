@@ -26,14 +26,29 @@ class AuthHandler:
         self.application_id = get_secret("APPLICATION_ID")
         self.certificate_path = get_secret("CERTIFICATE_PATH")
         self.certificate_password = get_secret("CERTIFICATE_PASSWORD")
-        
+
+        missing = [
+            name for name, value in [
+                ("CLIENT_ID", self.client_id),
+                ("TENANT_ID", self.tenant_id),
+                ("APPLICATION_ID", self.application_id),
+            ]
+            if not value
+        ]
+        if missing:
+            raise ValueError(
+                "Följande obligatoriska secrets saknas i Streamlit Cloud "
+                f"(eller .env lokalt): {', '.join(missing)}. "
+                "Lägg till dem under App → Settings → Secrets."
+            )
+
         # Azure AD endpoint för token-utgivning
         self.authority = f"https://login.microsoftonline.com/{self.tenant_id}"
-        
+
         # Definierat Scope enligt Euroclear Vantage dokumentationen
         # .default används för att begära alla behörigheter applikationen är konfigurerad för
         self.scope = [f"https://euroclearb2c01.onmicrosoft.com/{self.application_id}/.default"]
-        
+
         self.app = None
 
     def _load_certificate_key(self):
@@ -128,9 +143,15 @@ class AuthHandler:
             # 2. Om ingen giltig token finns i cache, gör ett nytt anrop mot Azure AD
             result = self.app.acquire_token_for_client(scopes=self.scope)
 
+        if not isinstance(result, dict):
+            raise Exception(
+                f"Oväntat svar från MSAL ({type(result).__name__}). "
+                "Kontrollera CLIENT_ID, TENANT_ID och APPLICATION_ID."
+            )
+
         if "access_token" in result:
             return result["access_token"]
-        else:
-            # Fånga och kasta vidare eventuella fel från MSAL
-            error_description = result.get("error_description", result.get("error", "Okänt fel"))
-            raise Exception(f"Kunde ej hämta access token: {error_description}")
+
+        # Fånga och kasta vidare eventuella fel från MSAL
+        error_description = result.get("error_description", result.get("error", "Okänt fel"))
+        raise Exception(f"Kunde ej hämta access token: {error_description}")
