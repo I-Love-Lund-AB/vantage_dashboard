@@ -19,7 +19,7 @@ from pathlib import Path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Ökas vid deploy så Streamlit Cloud laddar om cachad klient
-APP_BUILD_ID = "2026-06-10-cert-base64-fallback"
+APP_BUILD_ID = "2026-06-10-cache-key-fix"
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(_PROJECT_ROOT / ".env")
@@ -196,8 +196,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Initialisering ---
+# OBS: parametern måste INTE ha understreck-prefix. Streamlit utelämnar
+# parametrar som börjar med "_" från cache-nyckeln, så ett underscore-namn
+# gör att cachen ALDRIG invalideras vid build-bump.
 @st.cache_resource
-def get_components(_build_id=APP_BUILD_ID):
+def get_components(build_id: str):
     client = None
     init_error = None
     try:
@@ -207,7 +210,18 @@ def get_components(_build_id=APP_BUILD_ID):
     manager = DataManager()
     return client, manager, init_error
 
-client, manager, _api_init_error = get_components()
+
+# Säkerhetsbälte: om build-ID:t ändrats sedan förra renderingen,
+# rensa hela cache_resource så att en gammal VantageClient/AuthHandler
+# inte kan överleva en deploy.
+if st.session_state.get("_last_build_id") != APP_BUILD_ID:
+    try:
+        st.cache_resource.clear()
+    except Exception:
+        pass
+    st.session_state["_last_build_id"] = APP_BUILD_ID
+
+client, manager, _api_init_error = get_components(APP_BUILD_ID)
 if _api_init_error:
     st.error(
         f"API-klienten kunde inte startas: {_api_init_error} "
