@@ -1109,6 +1109,16 @@ def render_fetch_data_sidebar():
                         # Spara
                         manager.save_data(all_records)
                         st.sidebar.success(f"✅ Hämtade totalt {len(all_records)} poster (A + B aktier)!")
+
+                        try:
+                            manager.push_csv_to_github()
+                            st.sidebar.success("✅ Data sparad permanent till GitHub.")
+                        except Exception as push_err:
+                            st.sidebar.warning(
+                                f"⚠️ Data sparad lokalt men kunde inte pushas till GitHub: {push_err}"
+                            )
+
+                        st.rerun()
                     else:
                         st.sidebar.warning(f"⚠️ Ingen data hittades för {date_str}. (API svarade 204 No Content).")
                         st.sidebar.info("💡 **Tips:** API:et returnerar 204 när data saknas för detta datum. Detta kan bero på:")

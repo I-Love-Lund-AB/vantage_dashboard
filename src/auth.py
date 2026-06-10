@@ -38,60 +38,68 @@ class AuthHandler:
 
     def _load_certificate_key(self):
         """
-        Laddar privat nyckel och beräknar thumbprint från certifikatfilen.
-        
-        Stödjer .pfx (PKCS#12) och .pem filer.
-        
+        Laddar privat nyckel och beräknar thumbprint.
+
+        Försöker i ordning:
+        1. Läsa .pfx/.pem från disk (CERTIFICATE_PATH – fungerar lokalt).
+        2. Avkoda CERTIFICATE_BASE64 från env/Streamlit secrets (fungerar på Streamlit Cloud).
+
         Returns:
-            tuple: (private_key_pem_string, thumbprint_hex_string)
+            tuple: (private_key_pem_string, thumbprint_hex_string|None)
         """
-        if not self.certificate_path or not os.path.exists(self.certificate_path):
-            raise FileNotFoundError(f"Certifikat hittades ej på sökväg: {self.certificate_path}")
+        pfx_data = None
 
-        file_ext = os.path.splitext(self.certificate_path)[1].lower()
+        if self.certificate_path and os.path.exists(self.certificate_path):
+            file_ext = os.path.splitext(self.certificate_path)[1].lower()
 
-        if file_ext == '.pfx':
-            try:
+            if file_ext in ['.pem', '.key']:
+                with open(self.certificate_path, 'r') as f:
+                    return f.read(), None
+
+            if file_ext == '.pfx':
                 with open(self.certificate_path, "rb") as f:
                     pfx_data = f.read()
-                
-                # Om lösenord finns, koda det till bytes
-                password = self.certificate_password.encode() if self.certificate_password else None
-                
-                # Extrahera nyckel och certifikat från PFX-filen
-                private_key, certificate, additional_certificates = pkcs12.load_key_and_certificates(
-                    pfx_data, 
-                    password
+            else:
+                raise ValueError(
+                    f"Certifikatsformat stöds ej: {file_ext}. Använd .pfx eller .pem"
                 )
-                
-                if private_key is None:
-                    raise ValueError("PFX-filen innehåller ingen privat nyckel.")
 
-                # Serialisera nyckeln till PEM-format (krävs av MSAL Python)
-                key_pem = private_key.private_bytes(
-                    encoding=serialization.Encoding.PEM,
-                    format=serialization.PrivateFormat.TraditionalOpenSSL,
-                    encryption_algorithm=serialization.NoEncryption()
+        if pfx_data is None:
+            cert_b64 = get_secret("CERTIFICATE_BASE64")
+            if not cert_b64:
+                raise FileNotFoundError(
+                    "Inget certifikat tillgängligt: varken CERTIFICATE_PATH på disk "
+                    "eller CERTIFICATE_BASE64 i Streamlit secrets hittades."
                 )
-                
-                # Beräkna SHA-1 Thumbprint (krävs ofta av Azure AD för att identifiera certifikatet)
-                if certificate:
-                    thumbprint = certificate.fingerprint(hashes.SHA1()).hex()
-                else:
-                    thumbprint = None
-
-                return key_pem.decode('utf-8'), thumbprint
-                
+            cert_b64 = cert_b64.strip().replace("\n", "").replace("\r", "").replace(" ", "")
+            missing_pad = len(cert_b64) % 4
+            if missing_pad:
+                cert_b64 += "=" * (4 - missing_pad)
+            try:
+                pfx_data = base64.b64decode(cert_b64)
             except Exception as e:
-                raise Exception(f"Fel vid inläsning av PFX-certifikat: {str(e)}")
-        
-        elif file_ext in ['.pem', '.key']:
-            # Fallback för rena PEM-filer - thumbprint kan behöva hanteras manuellt om det krävs
-            with open(self.certificate_path, 'r') as f:
-                return f.read(), None
-        
-        else:
-            raise ValueError(f"Certifikatsformat stöds ej: {file_ext}. Använd .pfx eller .pem")
+                raise ValueError(f"Kunde ej avkoda CERTIFICATE_BASE64: {e}")
+
+        try:
+            password = self.certificate_password.encode() if self.certificate_password else None
+            private_key, certificate, _additional_certificates = pkcs12.load_key_and_certificates(
+                pfx_data,
+                password,
+            )
+        except Exception as e:
+            raise Exception(f"Fel vid inläsning av PFX-certifikat: {str(e)}")
+
+        if private_key is None:
+            raise ValueError("PFX-data innehåller ingen privat nyckel.")
+
+        key_pem = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+
+        thumbprint = certificate.fingerprint(hashes.SHA1()).hex() if certificate else None
+        return key_pem.decode('utf-8'), thumbprint
 
     def get_access_token(self):
         """
