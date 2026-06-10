@@ -19,7 +19,7 @@ from pathlib import Path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Ökas vid deploy så Streamlit Cloud laddar om cachad klient
-APP_BUILD_ID = "2026-06-10-auth-diagnostics"
+APP_BUILD_ID = "2026-06-10-business-day-default"
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(_PROJECT_ROOT / ".env")
@@ -281,16 +281,17 @@ def apply_brand_layout(fig):
     return fig
 
 # --- HJÄLPFUNKTIONER ---
-def get_last_month_end_date():
+def get_last_business_day_prev_month():
     """
-    Räknar ut sista dagen i föregående månad.
-    Detta är oftast datumet då ny data finns tillgänglig.
+    Räknar ut sista helgfria vardagen i föregående månad.
+    Euroclear publicerar inte data för helger, så vi backar från sista
+    kalenderdagen tills vi hittar en måndag–fredag.
     """
     today = datetime.today()
-    # Första dagen i denna månad
     first_of_this_month = today.replace(day=1)
-    # Sista dagen i förra månaden är dagen innan första dagen i denna månad
     last_month_end = first_of_this_month - timedelta(days=1)
+    while last_month_end.weekday() >= 5:
+        last_month_end -= timedelta(days=1)
     return last_month_end
 
 
@@ -1072,7 +1073,7 @@ st.sidebar.title("KONFIGURATION")
 st.sidebar.caption(f"Build: {APP_BUILD_ID}")
 
 # HÅRDKODAT STANDARD-DATUM: Sista dagen i förra månaden
-default_date = get_last_month_end_date()
+default_date = get_last_business_day_prev_month()
 
 def render_fetch_data_sidebar():
     """Renderar sektionen för att hämta ny data från API."""
