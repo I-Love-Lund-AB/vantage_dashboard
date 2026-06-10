@@ -19,7 +19,7 @@ from pathlib import Path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Ökas vid deploy så Streamlit Cloud laddar om cachad klient
-APP_BUILD_ID = "2026-06-04-secrets-fix-v2"
+APP_BUILD_ID = "2026-06-10-cert-base64-fallback"
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(_PROJECT_ROOT / ".env")
